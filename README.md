@@ -2,6 +2,8 @@
 
 Collection de launchers Quickshell pour Hyprland avec intégration pywal/wallust.
 
+![Game Launcher Preview](game-launcher/image.png)
+
 ## 📦 Projets
 
 ### 🎮 Game Launcher
