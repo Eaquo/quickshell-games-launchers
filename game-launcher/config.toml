@@ -1,0 +1,80 @@
+# Game Launcher Configuration
+
+[display]
+position = "center"  # center, top, bottom, left, right
+grid_size = [4, 3]   # colonnes x lignes (columns x rows)
+item_width = 220
+item_height = 300
+spacing = 20
+
+[steam]
+enabled = true
+library_paths = [
+    "~/.local/share/Steam/steamapps",
+    # Si plusieurs disques avec Steam:
+    # "/mnt/games/Steam/steamapps",
+]
+# Fetch cover images from Steam
+fetch_covers = true
+
+[heroic]
+enabled = true
+config_paths = [
+    "~/.config/heroic",
+    # Si Heroic installé ailleurs (Flatpak par exemple):
+    # "~/.var/app/com.heroicgameslauncher.hgl/config/heroic",
+]
+# Scan pour Epic Games, GOG, Amazon Games et sideload apps
+scan_epic = true
+scan_gog = true
+scan_amazon = true
+scan_sideload = true
+
+[lutris]
+enabled = false
+# Lutris sera ajouté plus tard si nécessaire
+
+[appearance]
+use_wallust = true
+wallust_path = "~/.cache/wal/wal.json"
+show_game_names = true
+show_categories = true
+show_playtime = true
+blur_background = true
+background_opacity = 0.85
+
+[behavior]
+sort_by = "recent"  # recent, name, playtime, favorite
+show_favorites_first = true
+close_on_launch = true
+
+[animations]
+enabled = true
+duration_ms = 300
+ease_type = "OutCubic"  # Linear, InQuad, OutQuad, InOutQuad, OutCubic
+
+
+box_art_dir = "/home/florian/.config/quickshell/game-launcher/box-art"
+
+[[entries]]
+title = "📚 Game Library"
+launch_command = "kitty -e python3 /home/florian/.config/quickshell/game-launcher/list_games.py"
+path_box_art = "library.png"
+
+[[entries]]
+title = "Script Game"
+launch_command = "/home/florian/.config/hypr/UserScripts/EditScriptGame.sh"
+path_box_art = "Neo.png"
+
+[[entries]]
+title = "Ankama Launcher"
+launch_command = "/home/florian/Applications/Ankama_4a46072423842bfe366d20988ab1bba1.AppImage --no-sandbox %U"
+path_box_art = "ankama.png"
+
+[[entries]]
+title = "Vortex"
+launch_command = "/home/florian/Applications/NexusMods.App.x86_64_3315cb0ddb1ababf804f21649039c4e4.AppImage %u"
+path_box_art = "vortex.png"
+
+
+

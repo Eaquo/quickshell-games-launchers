@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Cache
+.cache/
+*.log
+
+# Personal box art images (optionnel - décommenter si tu veux les exclure)
+# game-launcher/box-art/*.png
+# game-launcher/box-art/*.jpg
+# game-launcher/box-art/*.webp
+
+# Keep empty directories
+!game-launcher/box-art/.gitkeep
+
+# Personal game entries (optionnel - décommenter si tu veux exclure ta config perso)
+# game-launcher/games.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.backup

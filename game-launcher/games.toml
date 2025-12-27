@@ -1,0 +1,17 @@
+# Manual Game Entries
+# Add your custom games here
+
+[[games]]
+name = "Elden Ring"
+exec = "gamescope -W 3440 -H 1440 -f -- steam steam://rungameid/1245620"
+image = "~/Pictures/games/elden-ring.png"
+category = "souls-like"
+favorite = true
+
+# You can add more games following this format
+# [[games]]
+# name = "Game Name"
+# exec = "command to launch"
+# image = "path/to/cover.png"
+# category = "category-name"
+# favorite = true/false

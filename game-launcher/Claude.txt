@@ -1,0 +1,103 @@
+Je veux créer un game launcher moderne pour Hyprland en utilisant quickshell (Qt6/QML).
+
+## Objectif
+Créer un overlay stylisé pour lancer des jeux, similaire à https://github.com/caelestia-dots/shell mais avec quickshell au lieu de Rofi.
+
+## Spécifications techniques
+
+### 1. Structure du projet
+- Emplacement : ~/.config/quickshell/game-launcher/
+- Langages : QML (interface) + Python (backend)
+- Config : TOML pour les jeux manuels
+
+### 2. Fonctionnalités principales
+
+**Détection des jeux :**
+- Scanner automatiquement les jeux Steam (depuis ~/.local/share/Steam/)
+- Lire une config TOML pour les jeux ajoutés manuellement
+- Format TOML souhaité :
+```toml
+[[games]]
+name = "Elden Ring Nightreign"
+exec = "gamescope -W 3440 -H 1440 -- steam steam://rungameid/123456"
+image = "~/Pictures/games/elden-ring.png"
+category = "souls-like"
+favorite = true
+
+[[games]]
+name = "Custom Game"
+exec = "/path/to/game"
+image = "~/Pictures/games/custom.png"
+category = "indie"
+```
+
+**Interface (QML) :**
+- Grille de jeux avec covers/artwork
+- Position configurable : centre, haut, bas, gauche, droite
+- Taille de grille configurable (ex: 3x3, 4x4)
+- Animations smooth pour l'apparition/disparition
+- Navigation au clavier (arrows, Enter, Escape)
+- Recherche/filtre en temps réel
+
+**Intégration système :**
+- Overlay qui s'affiche/disparaît avec un keybind Hyprland
+- Intégration des couleurs wallust depuis ~/.cache/wallust/colors.json
+- Style adaptatif basé sur le thème actuel
+
+### 3. Configuration
+
+Créer un fichier de config principal (config.toml) :
+```toml
+[display]
+position = "center"  # center, top, bottom, left, right
+grid_size = [4, 3]   # colonnes x lignes
+item_width = 200
+item_height = 280
+
+[steam]
+enabled = true
+library_paths = [
+    "~/.local/share/Steam/steamapps",
+]
+
+[appearance]
+use_wallust = true
+show_game_names = true
+show_categories = true
+```
+
+### 4. Features souhaitées
+- Récupération automatique des covers Steam
+- Support des favoris (étoile/pin)
+- Catégories/tags pour filtrer
+- Derniers jeux joués en premier
+- Temps de jeu (si disponible via Steam)
+
+## Stack technique
+- quickshell (Qt6/QML) pour l'interface
+- Python 3 pour le backend (scan Steam, parsing TOML)
+- TOML pour la configuration
+- JSON pour l'échange de données entre Python et QML
+
+## Environnement
+- Distribution : CachyOS (Arch-based)
+- Window Manager : Hyprland
+- Wallust pour les couleurs : ~/.cache/wallust/colors.json
+
+## Livrables attendus
+1. Structure complète du projet avec tous les fichiers
+2. Script Python pour scanner Steam + parser TOML
+3. Widget quickshell en QML
+4. Fichier de config TOML exemple
+5. Instructions d'installation et configuration Hyprland
+6. Documentation pour ajouter des jeux manuellement
+
+## Style visuel
+Inspirer du design de caelestia-dots/shell :
+- Cards avec ombres
+- Blur/transparency
+- Animations fluides
+- Design moderne et épuré
+- Adapté aux thèmes sombres
+
+Peux-tu créer ce projet complet avec une architecture propre et modulaire ?
