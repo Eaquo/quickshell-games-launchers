@@ -26,22 +26,6 @@ Launcher de jeux avec support multi-plateformes et interface élégante.
 - `Esc` : Fermer
 - `Molette` : Naviguer
 
-### 🌈 RGB Launcher
-Contrôleur OpenRGB avec 8 séquences d'animation + couleurs fixes.
-
-**Séquences:**
-1. 🌊 **Ocean Wave** - Vague océanique fluide
-2. 🔥 **Fire Dance** - Flammes dansantes
-3. 🌲 **Forest Breath** - Respiration de forêt
-4. 🌸 **Cherry Blossom** - Pétales de cerisier
-5. 💻 **Matrix Rain** - Pluie Matrix style
-6. 🌌 **Aurora Borealis** - Aurore boréale
-7. ⚡ **Lightning Storm** - Orage électrique
-8. 🌃 **Neon City** - Ville néon cyberpunk
-
-**Couleurs fixes:**
-Rouge, Vert, Bleu, Cyan, Magenta, Jaune, Blanc, Orange, Violet, Rose, Lime, Azure
-
 ## 🛠️ Installation
 
 ### Prérequis
