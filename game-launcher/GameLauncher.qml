@@ -15,14 +15,17 @@ Rectangle {
     property int selectedIndex: 0
 
     // Config values
+    property string orientation: config?.display?.orientation ?? "horizontal"
     property int gridColumns: config?.display?.grid_size?.[0] ?? 4
     property int gridRows: config?.display?.grid_size?.[1] ?? 3
     property int itemWidth: config?.display?.item_width ?? 200
     property int itemHeight: config?.display?.item_height ?? 300
     property int spacing: config?.display?.spacing ?? 20
 
+    // Dimensions adaptées selon l'orientation
     width: (itemWidth * gridColumns) + (spacing * (gridColumns + 1))
-    height: itemHeight + (spacing * 2) + 100 // +100 for footer with dots and info
+    height: (itemHeight * gridRows) + (spacing * (gridRows + 1)) + 60
+
 
     color: "transparent"
     radius: 16
@@ -123,23 +126,31 @@ Rectangle {
     }
 
     function navigateLeft() {
-        if (selectedIndex > 0) {
+        if (orientation === "horizontal" && selectedIndex > 0) {
+            selectedIndex--;
+        } else if (orientation === "vertical" && selectedIndex % gridColumns > 0) {
             selectedIndex--;
         }
     }
 
     function navigateRight() {
-        if (selectedIndex < filteredGames.length - 1) {
+        if (orientation === "horizontal" && selectedIndex < filteredGames.length - 1) {
+            selectedIndex++;
+        } else if (orientation === "vertical" && selectedIndex % gridColumns < gridColumns - 1 && selectedIndex < filteredGames.length - 1) {
             selectedIndex++;
         }
     }
 
     function navigateUp() {
-        // Navigation haut/bas désactivée pour le carrousel horizontal
+        if (orientation === "vertical" && selectedIndex >= gridColumns) {
+            selectedIndex -= gridColumns;
+        }
     }
 
     function navigateDown() {
-        // Navigation haut/bas désactivée pour le carrousel horizontal
+        if (orientation === "vertical" && selectedIndex + gridColumns < filteredGames.length) {
+            selectedIndex += gridColumns;
+        }
     }
 
     function launchSelectedGame() {
@@ -166,185 +177,244 @@ Rectangle {
         }
     }
 
-    ColumnLayout {
+    // Layout adaptatif selon l'orientation
+    Item {
         anchors.fill: parent
         anchors.margins: spacing
-        spacing: launcher.spacing
 
-        // Games carousel (horizontal)
-        ListView {
-            id: gamesCarousel
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-
-            orientation: ListView.Horizontal
+        // Layout HORIZONTAL (ColumnLayout: ListView en haut, indicateurs en bas)
+        ColumnLayout {
+            visible: launcher.orientation === "horizontal"
+            anchors.fill: parent
             spacing: launcher.spacing
-            clip: true
 
-            model: filteredGames
+            ListView {
+                id: gamesCarouselH
+                Layout.fillWidth: true
+                Layout.fillHeight: true
 
-            // Smooth scrolling
-            highlightRangeMode: ListView.StrictlyEnforceRange
-            highlightMoveDuration: 300
-            preferredHighlightBegin: width / 2 - itemWidth / 2
-            preferredHighlightEnd: width / 2 + itemWidth / 2
+                orientation: ListView.Horizontal
+                spacing: launcher.spacing
+                clip: true
+                model: filteredGames
 
-            currentIndex: selectedIndex
+                highlightRangeMode: ListView.StrictlyEnforceRange
+                highlightMoveDuration: 300
+                preferredHighlightBegin: width / 2 - itemWidth / 2
+                preferredHighlightEnd: width / 2 + itemWidth / 2
 
-            onCurrentIndexChanged: {
-                selectedIndex = currentIndex
-            }
+                currentIndex: selectedIndex
+                onCurrentIndexChanged: selectedIndex = currentIndex
 
-            // Support de la molette de souris
-            MouseArea {
-                anchors.fill: parent
-                propagateComposedEvents: true
-
-                onWheel: (wheel) => {
-                    if (wheel.angleDelta.y > 0) {
-                        // Molette vers le haut = jeu précédent (gauche)
-                        navigateLeft()
-                    } else if (wheel.angleDelta.y < 0) {
-                        // Molette vers le bas = jeu suivant (droite)
-                        navigateRight()
+                MouseArea {
+                    anchors.fill: parent
+                    propagateComposedEvents: true
+                    onWheel: (wheel) => {
+                        if (wheel.angleDelta.y > 0) navigateLeft()
+                        else if (wheel.angleDelta.y < 0) navigateRight()
+                        wheel.accepted = true
                     }
-                    wheel.accepted = true
+                    onClicked: (mouse) => { mouse.accepted = false }
                 }
 
-                onClicked: (mouse) => {
-                    mouse.accepted = false  // Laisser passer les clics aux cartes
+                delegate: GameCard {
+                    width: itemWidth
+                    height: itemHeight
+                    gameName: modelData.name || "Unknown"
+                    gameImage: modelData.image || ""
+                    gameCategory: modelData.category || ""
+                    gameSource: modelData.source || ""
+                    isFavorite: modelData.favorite || false
+                    isSelected: index === selectedIndex
+                    gameColors: colors
+                    lastPlayed: modelData.last_played || 0
+                    scale: isSelected ? 1.0 : 0.85
+                    opacity: isSelected ? 1.0 : 0.6
+
+                    Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
+                    Behavior on opacity { NumberAnimation { duration: 200 } }
+
+                    onClicked: { gamesCarouselH.currentIndex = index; launcher.forceActiveFocus(); }
+                    onLaunchRequested: { launchGame(modelData); }
                 }
-            }
 
-            delegate: GameCard {
-                width: itemWidth
-                height: itemHeight
+                Rectangle {
+                    visible: filteredGames.length === 0
+                    anchors.centerIn: parent
+                    width: 300
+                    height: 200
+                    color: "transparent"
 
-                gameName: modelData.name || "Unknown"
-                gameImage: modelData.image || ""
-                gameCategory: modelData.category || ""
-                gameSource: modelData.source || ""
-                isFavorite: modelData.favorite || false
-                isSelected: index === selectedIndex
-                gameColors: colors
-                lastPlayed: modelData.last_played || 0
-
-                // Scale effect for non-selected items
-                scale: isSelected ? 1.0 : 0.85
-                opacity: isSelected ? 1.0 : 0.6
-
-                Behavior on scale {
-                    NumberAnimation {
-                        duration: 200
-                        easing.type: Easing.OutQuad
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 16
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "🎮"; font.pixelSize: 64; opacity: 0.3 }
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "No games available"; font.pixelSize: 18; color: colors.foreground || "#ffffff"; opacity: 0.7 }
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Add games to games.toml or install Steam games"; font.pixelSize: 14; color: colors.foreground || "#ffffff"; opacity: 0.5 }
                     }
-                }
-
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: 200
-                    }
-                }
-
-                onClicked: {
-                    gamesCarousel.currentIndex = index
-                    launcher.forceActiveFocus();
-                }
-
-                onLaunchRequested: {
-                    launchGame(modelData);
                 }
             }
 
-            // Empty state
+            // Indicateurs HORIZONTAUX (en bas)
             Rectangle {
-                visible: filteredGames.length === 0
-                anchors.centerIn: parent
-                width: 300
-                height: 200
+                Layout.fillWidth: true
+                Layout.preferredHeight: 40
                 color: "transparent"
 
-                Column {
+                Row {
                     anchors.centerIn: parent
-                    spacing: 16
-
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: "🎮"
-                        font.pixelSize: 64
-                        opacity: 0.3
+                    spacing: 8
+                    Repeater {
+                        model: Math.min(filteredGames.length, 10)
+                        Rectangle {
+                            width: 8; height: 8; radius: 4
+                            color: colors.color5 || "#00ffff"
+                            opacity: index === selectedIndex ? 1.0 : 0.3
+                            scale: index === selectedIndex ? 1.3 : 1.0
+                            Behavior on opacity { NumberAnimation { duration: 200 } }
+                            Behavior on scale { NumberAnimation { duration: 200 } }
+                        }
                     }
+                }
 
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: "No games available"
-                        font.pixelSize: 18
-                        color: colors.foreground || "#ffffff"
-                        opacity: 0.7
-                    }
+                Text {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: filteredGames.length > 0 ? (selectedIndex + 1) + " / " + filteredGames.length : "0"
+                    font.pixelSize: 12
+                    color: colors.foreground || "#ffffff"
+                    opacity: 0.6
+                }
 
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: "Add games to games.toml or install Steam games"
-                        font.pixelSize: 14
-                        color: colors.foreground || "#ffffff"
-                        opacity: 0.5
-                    }
+                Text {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "← → Navigate  ⏎ Launch  Esc Close"
+                    font.pixelSize: 11
+                    color: colors.foreground || '#15ff00'
+                    opacity: 0.5
                 }
             }
         }
 
-        // Position indicator (dots) + Info
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 40
-            color: "transparent"
+        // Layout VERTICAL (RowLayout: GridView à gauche, indicateurs à droite)
+        RowLayout {
+            visible: launcher.orientation === "vertical"
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            spacing: launcher.spacing
 
-            Row {
-                anchors.centerIn: parent
-                spacing: 8
+            GridView {
+                id: gamesCarouselV
+                Layout.preferredWidth: (itemWidth * gridColumns) + (spacing * (gridColumns - 1))
+                Layout.fillHeight: true
+                Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
 
-                Repeater {
-                    model: Math.min(filteredGames.length, 10) // Max 10 dots
+                cellWidth: itemWidth + spacing
+                cellHeight: itemHeight + spacing
+                clip: true
+                model: filteredGames
 
-                    Rectangle {
-                        width: 8
-                        height: 8
-                        radius: 4
-                        color: colors.color5 || "#00ffff"
-                        opacity: index === selectedIndex ? 1.0 : 0.3
+                currentIndex: selectedIndex
+                onCurrentIndexChanged: selectedIndex = currentIndex
 
-                        Behavior on opacity {
-                            NumberAnimation { duration: 200 }
-                        }
+                MouseArea {
+                    anchors.fill: parent
+                    propagateComposedEvents: true
+                    onWheel: (wheel) => {
+                        if (wheel.angleDelta.y > 0) navigateUp()
+                        else if (wheel.angleDelta.y < 0) navigateDown()
+                        wheel.accepted = true
+                    }
+                    onClicked: (mouse) => { mouse.accepted = false }
+                }
 
-                        scale: index === selectedIndex ? 1.3 : 1.0
+                delegate: GameCard {
+                    width: itemWidth
+                    height: itemHeight
+                    gameName: modelData.name || "Unknown"
+                    gameImage: modelData.image || ""
+                    gameCategory: modelData.category || ""
+                    gameSource: modelData.source || ""
+                    isFavorite: modelData.favorite || false
+                    isSelected: index === selectedIndex
+                    gameColors: colors
+                    lastPlayed: modelData.last_played || 0
+                    scale: isSelected ? 1.0 : 0.85
+                    opacity: isSelected ? 1.0 : 0.6
 
-                        Behavior on scale {
-                            NumberAnimation { duration: 200 }
-                        }
+                    Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
+                    Behavior on opacity { NumberAnimation { duration: 200 } }
+
+                    onClicked: { gamesCarouselV.currentIndex = index; launcher.forceActiveFocus(); }
+                    onLaunchRequested: { launchGame(modelData); }
+                }
+
+                Rectangle {
+                    visible: filteredGames.length === 0
+                    anchors.centerIn: parent
+                    width: 300
+                    height: 200
+                    color: "transparent"
+
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 16
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "🎮"; font.pixelSize: 64; opacity: 0.3 }
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "No games available"; font.pixelSize: 18; color: colors.foreground || "#ffffff"; opacity: 0.7 }
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Add games to games.toml or install Steam games"; font.pixelSize: 14; color: colors.foreground || "#ffffff"; opacity: 0.5 }
                     }
                 }
             }
 
-            // Game counter
-            Text {
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                text: filteredGames.length > 0 ? (selectedIndex + 1) + " / " + filteredGames.length : "0"
-                font.pixelSize: 12
-                color: colors.foreground || "#ffffff"
-                opacity: 0.6
-            }
+            // Indicateurs VERTICAUX (à droite)
+            Rectangle {
+                Layout.fillHeight: true
+                Layout.preferredWidth: 50
+                Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                color: "transparent"
 
-            // Keyboard hints
-            Text {
-                anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
-                text: "← → Navigate  ⏎ Launch  Esc Close"
-                font.pixelSize: 11
-                color: colors.foreground || '#15ff00'
-                opacity: 0.5
+                Column {
+                    anchors.centerIn: parent
+                    spacing: 12
+
+                    // Dots verticaux
+                    Column {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 6
+                        Repeater {
+                            model: Math.min(filteredGames.length, 10)
+                            Rectangle {
+                                width: 8; height: 8; radius: 4
+                                color: colors.color5 || "#00ffff"
+                                opacity: index === selectedIndex ? 1.0 : 0.3
+                                scale: index === selectedIndex ? 1.3 : 1.0
+                                Behavior on opacity { NumberAnimation { duration: 200 } }
+                                Behavior on scale { NumberAnimation { duration: 200 } }
+                            }
+                        }
+                    }
+
+                    // Counter
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: filteredGames.length > 0 ? (selectedIndex + 1) + "/" + filteredGames.length : "0"
+                        font.pixelSize: 10
+                        color: colors.foreground || "#ffffff"
+                        opacity: 0.6
+                    }
+
+                    // Hints verticaux
+                    Column {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 2
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "↑↓"; font.pixelSize: 10; color: colors.foreground || '#15ff00'; opacity: 0.5 }
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "⏎"; font.pixelSize: 10; color: colors.foreground || '#15ff00'; opacity: 0.5 }
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Esc"; font.pixelSize: 9; color: colors.foreground || '#15ff00'; opacity: 0.5 }
+                    }
+                }
             }
         }
     }

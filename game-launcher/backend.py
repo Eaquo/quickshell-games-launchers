@@ -13,6 +13,9 @@ from typing import List, Dict, Any
 import re
 import urllib.request
 import urllib.error
+import struct
+import binascii
+import vdf
 
 
 class GameLauncher:
@@ -101,7 +104,19 @@ class GameLauncher:
             "sdk",
             "dedicated server",
             "tool",
-            "hotfix"
+            "hotfix",
+            "steamvr",
+            "steam audio",
+            "steam shader",
+            "steam workshop",
+            "steam controller",
+            "directx",
+            "vcredist",
+            "visual c++",
+            ".net framework",
+            "microsoft visual",
+            "steam play",
+            "compatibility tool"
         ]
 
         name_lower = name.lower()
@@ -167,6 +182,236 @@ class GameLauncher:
         # For now, return primary header format
         # TODO: Implement image validation and fallback in QML or backend
         return f"{base_url}/header.jpg"
+
+    def convert_appid_to_long(self, appid: int) -> int:
+        """
+        Convert short AppID (from shortcuts.vdf) to long AppID (for steam://rungameid/)
+        Method from @bkbilly on GitHub
+        """
+        # Convert to HEX int32
+        int32 = struct.Struct('<i')
+        bin_appid = int32.pack(appid)
+        hex_appid = binascii.hexlify(bin_appid).decode()
+
+        # Convert to long_appid
+        reversed_hex = bytes.fromhex(hex_appid)[::-1].hex()
+        long_appid = int(reversed_hex, 16) << 32 | 0x02000000
+
+        return long_appid
+
+    def parse_vdf_shortcuts(self, file_path: Path) -> List[Dict[str, Any]]:
+        """Parse Steam shortcuts.vdf (binary VDF format) using vdf library"""
+        games = []
+
+        try:
+            with open(file_path, 'rb') as f:
+                shortcuts_data = vdf.binary_load(f)
+
+            # shortcuts_data = {'shortcuts': {'0': {...}, '1': {...}, ...}}
+            for idx, app in shortcuts_data.get('shortcuts', {}).items():
+                game_data = self.process_shortcut_entry(app)
+                if game_data:
+                    games.append(game_data)
+
+        except Exception as e:
+            print(f"Error parsing shortcuts.vdf {file_path}: {e}", file=sys.stderr)
+
+        return games
+
+    def process_shortcut_entry(self, app: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse a single shortcut entry from VDF binary data
+        Returns: (shortcut_dict, end_position)
+        """
+        # Extract fields from the parsed shortcut
+        name = app.get('AppName', app.get('appname', 'Unknown'))
+        exe = app.get('Exe', app.get('exe', ''))
+        icon = app.get('icon', '')
+        short_appid = app.get('appid', 0)
+
+        # Skip if no name
+        if not name or name == 'Unknown':
+            return None
+
+        try:
+            # Skip games with invalid/inaccessible executables (e.g., Windows paths on Linux)
+            if exe:
+                # Clean up exe path (remove quotes)
+                exe_clean = exe.strip('"').strip("'")
+
+                # Check if it's a Windows path (C:\, D:\, etc.)
+                is_windows_path = len(exe_clean) > 2 and exe_clean[1:3] == ':\\'
+
+                # Skip if it's a Windows path (invalid on Linux)
+                if is_windows_path:
+                    return None
+
+                # For Linux paths, check if executable exists
+                expanded_path = os.path.expanduser(exe_clean)
+                if not os.path.exists(expanded_path) and not exe_clean.startswith('steam://'):
+                    # Skip if file doesn't exist and it's not a Steam URI
+                    return None
+
+            # Convert short AppID to long AppID for steam:// URI
+            long_appid = self.convert_appid_to_long(short_appid) if short_appid else 0
+
+            # Determine category based on game type
+            exe_clean = exe.strip('"').strip("'") if exe else ""
+            if "PortProton" in exe or "portproton" in exe.lower():
+                category = "steam_proton"
+            else:
+                category = "steam_app_0"
+
+            # Use Steam URI to launch non-Steam games through Steam
+            exec_cmd = f"steam steam://rungameid/{long_appid}"
+
+            return {
+                "name": name,
+                "exec": exec_cmd,
+                "image": icon if icon and os.path.exists(os.path.expanduser(icon)) else "",
+                "category": category,
+                "favorite": False,
+                "appid": str(long_appid),
+                "last_played": app.get('LastPlayTime', 0),
+                "source": "steam-shortcuts"
+            }
+
+        except Exception as e:
+            print(f"Error processing shortcut: {e}", file=sys.stderr)
+            return None
+
+    def parse_desktop_file(self, desktop_path: Path) -> Dict[str, Any]:
+        """Parse a .desktop file and extract game information"""
+        try:
+            with open(desktop_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # Extract Name
+            name_match = re.search(r'^Name=(.+)$', content, re.MULTILINE)
+            name = name_match.group(1) if name_match else desktop_path.stem
+
+            # Extract Exec for category detection
+            exec_match = re.search(r'^Exec=(.+)$', content, re.MULTILINE)
+            exec_cmd_original = exec_match.group(1) if exec_match else ""
+
+            # Extract Path
+            path_match = re.search(r'^Path=(.+)$', content, re.MULTILINE)
+            path_value = path_match.group(1) if path_match else ""
+
+            # Extract Icon
+            icon_match = re.search(r'^Icon=(.+)$', content, re.MULTILINE)
+            icon = icon_match.group(1) if icon_match else ""
+
+            # Determine category based on exec, path, or icon (check for PortProton anywhere)
+            is_portproton = any([
+                "PortProton" in exec_cmd_original,
+                "portproton" in exec_cmd_original.lower(),
+                "PortProton" in path_value,
+                "portproton" in path_value.lower(),
+                "PortProton" in icon,
+                "portproton" in icon.lower()
+            ])
+
+            category = "steam_proton" if is_portproton else "desktop"
+
+            return {
+                "name": name,
+                "exec": exec_cmd_original,
+                "image": icon if icon and os.path.exists(os.path.expanduser(icon)) else "",
+                "category": category,
+                "favorite": False,
+                "last_played": 0,
+                "source": "desktop"
+            }
+
+        except Exception as e:
+            print(f"Error parsing desktop file {desktop_path}: {e}", file=sys.stderr)
+            return None
+
+    def scan_desktop_files(self) -> List[Dict[str, Any]]:
+        """Scan .desktop files in applications directory and Desktop for PortProton games only"""
+        games = []
+        seen_games = set()  # Track game names to avoid duplicates
+
+        # Scan both Desktop and applications directory (Desktop has priority)
+        search_dirs = [
+            Path.home() / "Bureau",  # Desktop folder (French locale) - Priority
+            Path.home() / "Desktop",  # Desktop folder (English locale) - Priority
+            Path.home() / ".local/share/applications"
+        ]
+
+        for applications_dir in search_dirs:
+            if not applications_dir.exists():
+                continue
+
+            # Look for .desktop files that are PortProton games
+            for desktop_file in applications_dir.glob("*.desktop"):
+                try:
+                    with open(desktop_file, 'r', encoding='utf-8') as f:
+                        content = f.read()
+
+                    # Only scan PortProton games (not generic desktop files)
+                    if "PortProton" in content:
+                        game_data = self.parse_desktop_file(desktop_file)
+                        # Only add if it's a PortProton game (category steam_proton)
+                        if game_data and game_data.get("category") == "steam_proton":
+                            game_name = game_data.get("name", "")
+                            # Skip if already seen (Desktop has priority over applications)
+                            if game_name in seen_games:
+                                continue
+
+                            # Additional filter: skip Steam tools
+                            if not any(tool in game_name.lower() for tool in ["millennium", "steam rom manager", "steamtools", "steam_proton", "steam linux runtime"]):
+                                games.append(game_data)
+                                seen_games.add(game_name)
+
+                except Exception as e:
+                    continue
+
+        return games
+
+    def scan_steam_shortcuts(self) -> List[Dict[str, Any]]:
+        """Scan Steam shortcuts.vdf files for non-Steam games added to Steam"""
+        games = []
+
+        if not self.config.get("steam", {}).get("enabled", True):
+            return games
+
+        # Find Steam installation directory
+        steam_paths = [
+            Path.home() / ".local/share/Steam",
+            Path.home() / ".steam/steam",
+            Path.home() / "Game_Steam/steam",
+        ]
+
+        # Also check from library paths
+        library_paths = self.config.get("steam", {}).get("library_paths", [])
+        for lib_path_str in library_paths:
+            lib_path = self.expand_path(lib_path_str)
+            # Go up to steam root (steamapps -> steam)
+            if lib_path.name == "steamapps" and lib_path.parent.exists():
+                steam_paths.append(lib_path.parent)
+
+        # Search for shortcuts.vdf in userdata directories
+        for steam_path in steam_paths:
+            if not steam_path.exists():
+                continue
+
+            userdata_path = steam_path / "userdata"
+            if not userdata_path.exists():
+                continue
+
+            # Scan all user directories
+            for user_dir in userdata_path.iterdir():
+                if not user_dir.is_dir():
+                    continue
+
+                shortcuts_file = user_dir / "config" / "shortcuts.vdf"
+                if shortcuts_file.exists():
+                    print(f"Found shortcuts.vdf: {shortcuts_file}", file=sys.stderr)
+                    shortcuts = self.parse_vdf_shortcuts(shortcuts_file)
+                    games.extend(shortcuts)
+
+        return games
 
     def scan_heroic_library(self) -> List[Dict[str, Any]]:
         """Scan Heroic Games Launcher library (Epic, GOG, Amazon, Sideload)"""
@@ -328,8 +573,10 @@ class GameLauncher:
         return games
 
     def merge_games(self) -> List[Dict[str, Any]]:
-        """Merge Steam, Heroic, manual games, and config entries, avoiding duplicates"""
+        """Merge Steam, Heroic, manual games, desktop files, and config entries, avoiding duplicates"""
         steam_games = self.scan_steam_library()
+        steam_shortcuts = self.scan_steam_shortcuts()
+        desktop_games = self.scan_desktop_files()
         heroic_games = self.scan_heroic_library()
         manual_games = self.load_manual_games()
         config_entries = self.load_config_entries()
@@ -337,9 +584,16 @@ class GameLauncher:
         # Use dict to avoid duplicates (keyed by name)
         games_dict = {}
 
-        # Add Steam games first
+        # Add Steam games first (highest priority for images)
         for game in steam_games:
             games_dict[game["name"]] = game
+
+        # Add Steam non-Steam games (shortcuts)
+        for game in steam_shortcuts:
+            if game["name"] in games_dict:
+                games_dict[game["name"]].update(game)
+            else:
+                games_dict[game["name"]] = game
 
         # Add Heroic games
         for game in heroic_games:
@@ -353,6 +607,11 @@ class GameLauncher:
             if game["name"] in games_dict:
                 games_dict[game["name"]].update(game)
             else:
+                games_dict[game["name"]] = game
+
+        # Add .desktop file games (only if not already present - lowest priority)
+        for game in desktop_games:
+            if game["name"] not in games_dict:
                 games_dict[game["name"]] = game
 
         # Add/override with manual games (highest priority)

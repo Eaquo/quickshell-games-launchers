@@ -1,16 +1,18 @@
 # Game Launcher Configuration
 
 [display]
-position = "center"  # center, top, bottom, left, right
-grid_size = [4, 3]   # colonnes x lignes (columns x rows)
-item_width = 220
-item_height = 300
+position = "bottom"  # center, top, bottom, left, right
+orientation = "horizontal"  # horizontal or vertical
+grid_size = [3, 1]   # colonnes x lignes (columns x rows)
+item_width = 400  # Largeur des cards (220 pour vertical left/right, 400 pour horizontal)
+item_height = 200  # Hauteur des cards
 spacing = 20
 
 [steam]
 enabled = true
 library_paths = [
     "~/.local/share/Steam/steamapps",
+    "~/Game_Steam/steam/steamapps",
     # Si plusieurs disques avec Steam:
     # "/mnt/games/Steam/steamapps",
 ]

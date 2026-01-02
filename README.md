@@ -10,7 +10,8 @@ Collection de launchers Quickshell pour Hyprland avec intégration pywal/wallust
 Launcher de jeux avec support multi-plateformes et interface élégante.
 
 **Fonctionnalités:**
-- 🎯 Support Steam, Heroic (Epic/GOG/Amazon), et jeux manuels
+- 🎯 Support Steam, jeux non-Steam, Heroic (Epic/GOG/Amazon), et jeux manuels
+- 🎮 Détection automatique des jeux non-Steam ajoutés à Steam (via shortcuts.vdf)
 - 🖼️ Couvertures automatiques depuis Steam/SteamGridDB
 - 🏷️ Badges de plateforme et catégories
 - ⭐ Système de favoris
@@ -33,6 +34,9 @@ Launcher de jeux avec support multi-plateformes et interface élégante.
 ```bash
 # Arch Linux
 sudo pacman -S python qt6-declarative python-openrgb python-watchdog
+
+# Bibliothèque VDF pour Steam (jeux non-Steam)
+pip install vdf
 
 # Quickshell
 yay -S quickshell-git
@@ -169,6 +173,8 @@ quickshell/
 - **Layer Masking** - Coins arrondis natifs sur images
 - **Carousel horizontal** - Navigation fluide avec animations
 - **ACF Parsing** - Extraction chemins Steam
+- **VDF Binary Parsing** - Détection jeux non-Steam via shortcuts.vdf
+- **AppID Conversion** - Conversion correcte des AppID Steam pour lancement
 - **JSON Parsing** - Support Heroic Games Launcher
 
 ### RGB Launcher
