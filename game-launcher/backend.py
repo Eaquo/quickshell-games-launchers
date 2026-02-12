@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Game Launcher Backend
-Scans Steam library and custom games, outputs JSON for QML
+Game Launcher Backend - OPTIMIZED VERSION
+Features: Image URL caching, parallel requests, smart Steam CDN fallbacks
 """
 
 import json
@@ -9,13 +9,73 @@ import os
 import sys
 import tomllib
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import re
 import urllib.request
 import urllib.error
 import struct
 import binascii
 import vdf
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta
+
+
+class ImageCache:
+    """Cache for image URLs to avoid repeated API calls"""
+    
+    def __init__(self, cache_file: Path, ttl_hours: int = 24):
+        self.cache_file = cache_file
+        self.ttl = timedelta(hours=ttl_hours)
+        self.cache = self._load_cache()
+    
+    def _load_cache(self) -> Dict[str, Any]:
+        if not self.cache_file.exists():
+            return {}
+        try:
+            with open(self.cache_file, 'r') as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    
+    def _save_cache(self):
+        try:
+            self.cache_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.cache_file, 'w') as f:
+                json.dump(self.cache, f, indent=2)
+        except Exception as e:
+            print(f"Error saving cache: {e}", file=sys.stderr)
+    
+    def get(self, key: str) -> Optional[str]:
+        if key not in self.cache:
+            return None
+        
+        entry = self.cache[key]
+        cached_time = datetime.fromisoformat(entry['timestamp'])
+        
+        if datetime.now() - cached_time > self.ttl:
+            del self.cache[key]
+            return None
+        
+        return entry['url']
+    
+    def set(self, key: str, url: str):
+        self.cache[key] = {
+            'url': url,
+            'timestamp': datetime.now().isoformat()
+        }
+        self._save_cache()
+    
+    def clear_expired(self):
+        now = datetime.now()
+        expired_keys = [k for k, v in self.cache.items() 
+                       if now - datetime.fromisoformat(v['timestamp']) > self.ttl]
+        
+        for key in expired_keys:
+            del self.cache[key]
+        
+        if expired_keys:
+            self._save_cache()
 
 
 class GameLauncher:
@@ -25,27 +85,45 @@ class GameLauncher:
 
         self.config_path = Path(config_path)
         self.config = self.load_config()
-        self.games = []
+        
+        # Initialize image cache
+        cache_dir = self.config_path.parent / "cache"
+        cache_file = cache_dir / "image_cache.json"
+        cache_ttl = self.config.get("steamgriddb", {}).get("cache_ttl_hours", 24)
+        self.image_cache = ImageCache(cache_file, ttl_hours=cache_ttl)
+        self.image_cache.clear_expired()
 
     def load_config(self) -> Dict[str, Any]:
-        """Load configuration from TOML file"""
         try:
             with open(self.config_path, 'rb') as f:
                 return tomllib.load(f)
-        except FileNotFoundError:
-            print(f"Config file not found: {self.config_path}", file=sys.stderr)
-            return self.get_default_config()
         except Exception as e:
             print(f"Error loading config: {e}", file=sys.stderr)
             return self.get_default_config()
 
     def get_default_config(self) -> Dict[str, Any]:
-        """Return default configuration"""
         return {
             "steam": {
                 "enabled": True,
                 "library_paths": ["~/.local/share/Steam/steamapps"],
                 "fetch_covers": True
+            },
+            "steamgriddb": {
+                "enabled": False,
+                "api_key": "",
+                "image_type": "grid",
+                "prefer_animated": False,
+                "fallback_to_steam": True,
+                "dimensions": [],
+                "styles": [],
+                "mimes": [],
+                "nsfw": "false",
+                "humor": "false",
+                "epilepsy": "false",
+                "cache_ttl_hours": 24,
+                "parallel_requests": True,
+                "max_workers": 10,
+                "request_timeout": 3
             },
             "heroic": {
                 "enabled": True,
@@ -55,9 +133,10 @@ class GameLauncher:
                 "scan_amazon": True,
                 "scan_sideload": True
             },
-            "lutris": {
-                "enabled": True,
-                "config_path": "~/.config/lutris"
+            "filtering": {
+                "games_only": False,
+                "exclude_categories": [],
+                "exclude_keywords": []
             },
             "behavior": {
                 "sort_by": "recent",
@@ -66,8 +145,211 @@ class GameLauncher:
         }
 
     def expand_path(self, path: str) -> Path:
-        """Expand ~ and environment variables in path"""
         return Path(os.path.expanduser(os.path.expandvars(path)))
+
+    def check_url_exists(self, url: str, timeout: int = 2) -> bool:
+        """Check if an image URL returns 200 OK"""
+        try:
+            request = urllib.request.Request(url, method='HEAD')
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return response.status == 200
+        except Exception:
+            return False
+
+    def get_steam_cdn_fallback_url(self, app_id: str) -> str:
+        """Get Steam CDN image with smart fallbacks - tries multiple URLs"""
+        base_url = f"https://cdn.cloudflare.steamstatic.com/steam/apps/{app_id}"
+        
+        # Check cache first
+        cache_key = f"steam_cdn:{app_id}"
+        cached_url = self.image_cache.get(cache_key)
+        if cached_url:
+            return cached_url
+        
+        # Try URLs in order of preference
+        fallback_urls = [
+            f"{base_url}/header.jpg",           # Horizontal banner (460x215)
+            f"{base_url}/library_600x900.jpg",  # Vertical portrait
+            f"{base_url}/capsule_616x353.jpg",  # Medium capsule
+            f"{base_url}/library_hero.jpg",     # Large hero image
+        ]
+        
+        # Quick check - try first URL without validation
+        first_url = fallback_urls[0]
+        if self.check_url_exists(first_url, timeout=1):
+            self.image_cache.set(cache_key, first_url)
+            return first_url
+        
+        # If first fails, try others
+        for url in fallback_urls[1:]:
+            if self.check_url_exists(url, timeout=1):
+                self.image_cache.set(cache_key, url)
+                return url
+        
+        # If all fail, return first one anyway (let QML handle it)
+        return first_url
+
+    def get_steamgriddb_cover_url(self, app_id: str, platform: str = "steam") -> Optional[str]:
+        """Get cover image from SteamGridDB API with caching"""
+        sgdb_config = self.config.get("steamgriddb", {})
+        
+        if not sgdb_config.get("enabled", False):
+            return None
+            
+        api_key = sgdb_config.get("api_key", "")
+        if not api_key:
+            return None
+
+        # Check cache first
+        cache_key = f"{platform}:{app_id}:{sgdb_config.get('image_type', 'grid')}"
+        cached_url = self.image_cache.get(cache_key)
+        if cached_url:
+            return cached_url if cached_url else None  # Empty string means no image found
+
+        image_type = sgdb_config.get("image_type", "grid")
+        endpoint_map = {
+            "grid": "grids",
+            "hero": "heroes",
+            "logo": "logos",
+            "icon": "icons"
+        }
+        
+        endpoint = endpoint_map.get(image_type, "grids")
+        url = f"https://www.steamgriddb.com/api/v2/{endpoint}/{platform}/{app_id}"
+        
+        # Build query parameters
+        params = []
+        
+        if sgdb_config.get("prefer_animated", False):
+            params.append("types=animated")
+        else:
+            params.append("types=static")
+        
+        dimensions = sgdb_config.get("dimensions", [])
+        if dimensions:
+            params.append(f"dimensions={','.join(dimensions)}")
+        
+        styles = sgdb_config.get("styles", [])
+        if styles:
+            params.append(f"styles={','.join(styles)}")
+        
+        mimes = sgdb_config.get("mimes", [])
+        if mimes:
+            params.append(f"mimes={','.join(mimes)}")
+        
+        params.append(f"nsfw={sgdb_config.get('nsfw', 'false')}")
+        params.append(f"humor={sgdb_config.get('humor', 'false')}")
+        params.append(f"epilepsy={sgdb_config.get('epilepsy', 'false')}")
+        
+        if params:
+            url += "?" + "&".join(params)
+        
+        timeout = sgdb_config.get("request_timeout", 3)
+        
+        try:
+            request = urllib.request.Request(url)
+            request.add_header("Authorization", f"Bearer {api_key}")
+            request.add_header("User-Agent", "QuickShell-GameLauncher/2.0")
+            request.add_header("Accept", "application/json")
+            
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                data = json.loads(response.read().decode())
+                
+                if data.get("success") and data.get("data"):
+                    images = data["data"]
+                    if images:
+                        image_url = images[0].get("url", images[0].get("thumb"))
+                        self.image_cache.set(cache_key, image_url)
+                        return image_url
+                        
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                # Cache empty result to avoid retrying
+                self.image_cache.set(cache_key, "")
+        except Exception:
+            pass
+        
+        return None
+
+    def fetch_images_parallel(self, games: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Fetch images in parallel for faster loading"""
+        sgdb_config = self.config.get("steamgriddb", {})
+        
+        if not sgdb_config.get("enabled", False) or not sgdb_config.get("parallel_requests", True):
+            return games
+        
+        max_workers = sgdb_config.get("max_workers", 10)
+        
+        # Games that need image fetching
+        games_to_fetch = []
+        for i, game in enumerate(games):
+            if game.get("source") in ["steam", "epic", "gog", "amazon"] and game.get("appid"):
+                if not game.get("image") or "steamstatic.com" in game.get("image", ""):
+                    games_to_fetch.append((i, game))
+        
+        if not games_to_fetch:
+            return games
+        
+        def fetch_image(item):
+            idx, game = item
+            platform = self.get_steamgriddb_platform(game.get("source", ""), game.get("category", ""))
+            
+            # Try SteamGridDB first
+            url = self.get_steamgriddb_cover_url(game.get("appid"), platform)
+            
+            # If SteamGridDB fails and it's a Steam game, try Steam CDN fallbacks
+            if not url and game.get("source") == "steam":
+                url = self.get_steam_cdn_fallback_url(game.get("appid"))
+            
+            return idx, url
+        
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(fetch_image, item): item for item in games_to_fetch}
+            
+            for future in as_completed(futures):
+                try:
+                    idx, url = future.result()
+                    if url:
+                        games[idx]["image"] = url
+                except Exception:
+                    pass
+        
+        return games
+
+    def get_steamgriddb_platform(self, source: str, category: str) -> str:
+        """Map game source/category to SteamGridDB platform"""
+        platform_map = {
+            "steam": "steam",
+            "epic": "egs",
+            "gog": "gog",
+            "amazon": "amazon",
+            "uplay": "uplay",
+            "origin": "origin",
+            "battlenet": "bnet",
+            "sideload": "steam",
+        }
+        
+        return platform_map.get(source.lower()) or platform_map.get(category.lower()) or "steam"
+
+    def get_steam_cover_url(self, app_id: str) -> str:
+        """Get Steam cover URL with SteamGridDB and CDN fallbacks"""
+        # Try SteamGridDB first if enabled
+        sgdb_url = self.get_steamgriddb_cover_url(app_id, platform="steam")
+        if sgdb_url:
+            return sgdb_url
+        
+        # Fallback to Steam CDN with smart URL selection
+        sgdb_config = self.config.get("steamgriddb", {})
+        if sgdb_config.get("enabled", False) and not sgdb_config.get("fallback_to_steam", True):
+            return ""
+        
+        return self.get_steam_cdn_fallback_url(app_id)
+    
+    def get_heroic_cover_url(self, app_id: str, source: str, art_url: str = "") -> str:
+        """Get cover URL for Heroic games"""
+        platform = self.get_steamgriddb_platform(source, source)
+        sgdb_url = self.get_steamgriddb_cover_url(app_id, platform=platform)
+        return sgdb_url if sgdb_url else art_url
 
     def scan_steam_library(self) -> List[Dict[str, Any]]:
         """Scan Steam library for installed games"""
@@ -82,10 +364,8 @@ class GameLauncher:
             lib_path = self.expand_path(lib_path)
 
             if not lib_path.exists():
-                print(f"Steam library path not found: {lib_path}", file=sys.stderr)
                 continue
 
-            # Scan for .acf files (Steam app manifests)
             for acf_file in lib_path.glob("*.acf"):
                 game_data = self.parse_acf_file(acf_file)
                 if game_data:
@@ -94,33 +374,15 @@ class GameLauncher:
         return games
 
     def is_steam_tool(self, name: str) -> bool:
-        """Check if a Steam app is a tool/runtime (not a game)"""
+        """Check if a Steam app is a tool/runtime"""
         tool_patterns = [
-            "proton",
-            "steam linux runtime",
-            "steamworks common",
-            "steam runtime",
-            "redistributable",
-            "sdk",
-            "dedicated server",
-            "tool",
-            "hotfix",
-            "steamvr",
-            "steam audio",
-            "steam shader",
-            "steam workshop",
-            "steam controller",
-            "directx",
-            "vcredist",
-            "visual c++",
-            ".net framework",
-            "microsoft visual",
-            "steam play",
-            "compatibility tool"
+            "proton", "steam linux runtime", "steamworks common", "steam runtime",
+            "redistributable", "sdk", "dedicated server", "tool", "hotfix",
+            "steamvr", "steam audio", "steam shader", "steam workshop",
+            "steam controller", "directx", "vcredist", "visual c++",
+            ".net framework", "microsoft visual", "steam play", "compatibility tool"
         ]
-
-        name_lower = name.lower()
-        return any(pattern in name_lower for pattern in tool_patterns)
+        return any(pattern in name.lower() for pattern in tool_patterns)
 
     def parse_acf_file(self, acf_path: Path) -> Dict[str, Any]:
         """Parse Steam .acf manifest file"""
@@ -128,32 +390,25 @@ class GameLauncher:
             with open(acf_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
 
-            # Extract app ID
             app_id_match = re.search(r'"appid"\s+"(\d+)"', content)
             if not app_id_match:
                 return None
             app_id = app_id_match.group(1)
 
-            # Extract game name
             name_match = re.search(r'"name"\s+"([^"]+)"', content)
             if not name_match:
                 return None
             name = name_match.group(1)
 
-            # Filter out Steam tools (Proton, Runtime, etc.)
             if self.is_steam_tool(name):
                 return None
 
-            # Extract install directory
-            install_dir_match = re.search(r'"installdir"\s+"([^"]+)"', content)
-            install_dir = install_dir_match.group(1) if install_dir_match else ""
-
-            # Extract last played time (Unix timestamp)
             last_played_match = re.search(r'"LastPlayed"\s+"(\d+)"', content)
             last_played = int(last_played_match.group(1)) if last_played_match else 0
 
-            # Get cover image
-            cover_url = self.get_steam_cover_url(app_id)
+            # Image will be fetched in parallel if enabled
+            sgdb_config = self.config.get("steamgriddb", {})
+            cover_url = "" if sgdb_config.get("parallel_requests", True) else self.get_steam_cover_url(app_id)
 
             return {
                 "name": name,
@@ -166,321 +421,227 @@ class GameLauncher:
                 "source": "steam"
             }
 
-        except Exception as e:
-            print(f"Error parsing {acf_path}: {e}", file=sys.stderr)
+        except Exception:
             return None
 
-    def get_steam_cover_url(self, app_id: str) -> str:
-        """Get Steam grid/cover image URL with fallbacks"""
-        # Primary: header.jpg (horizontal banner)
-        # Fallback 1: library_600x900.jpg (vertical portrait)
-        # Fallback 2: capsule_616x353.jpg
-
-        # Return list of possible URLs (QML will try them in order)
-        base_url = f"https://cdn.cloudflare.steamstatic.com/steam/apps/{app_id}"
-
-        # For now, return primary header format
-        # TODO: Implement image validation and fallback in QML or backend
-        return f"{base_url}/header.jpg"
-
     def convert_appid_to_long(self, appid: int) -> int:
-        """
-        Convert short AppID (from shortcuts.vdf) to long AppID (for steam://rungameid/)
-        Method from @bkbilly on GitHub
-        """
-        # Convert to HEX int32
+        """Convert short AppID to long AppID"""
         int32 = struct.Struct('<i')
         bin_appid = int32.pack(appid)
         hex_appid = binascii.hexlify(bin_appid).decode()
-
-        # Convert to long_appid
         reversed_hex = bytes.fromhex(hex_appid)[::-1].hex()
-        long_appid = int(reversed_hex, 16) << 32 | 0x02000000
-
-        return long_appid
+        return int(reversed_hex, 16) << 32 | 0x02000000
 
     def parse_vdf_shortcuts(self, file_path: Path) -> List[Dict[str, Any]]:
-        """Parse Steam shortcuts.vdf (binary VDF format) using vdf library"""
+        """Parse Steam shortcuts.vdf"""
         games = []
-
         try:
             with open(file_path, 'rb') as f:
                 shortcuts_data = vdf.binary_load(f)
 
-            # shortcuts_data = {'shortcuts': {'0': {...}, '1': {...}, ...}}
             for idx, app in shortcuts_data.get('shortcuts', {}).items():
                 game_data = self.process_shortcut_entry(app)
                 if game_data:
                     games.append(game_data)
-
-        except Exception as e:
-            print(f"Error parsing shortcuts.vdf {file_path}: {e}", file=sys.stderr)
+        except Exception:
+            pass
 
         return games
 
     def process_shortcut_entry(self, app: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse a single shortcut entry from VDF binary data
-        Returns: (shortcut_dict, end_position)
-        """
-        # Extract fields from the parsed shortcut
+        """Parse a single shortcut entry"""
         name = app.get('AppName', app.get('appname', 'Unknown'))
         exe = app.get('Exe', app.get('exe', ''))
         icon = app.get('icon', '')
-        short_appid = app.get('appid', 0)
+        appid = app.get('appid', 0)
+        last_played = app.get('LastPlayTime', app.get('lastplaytime', 0))
 
-        # Skip if no name
-        if not name or name == 'Unknown':
+        if not name or not exe:
             return None
 
-        try:
-            # Skip games with invalid/inaccessible executables (e.g., Windows paths on Linux)
-            if exe:
-                # Clean up exe path (remove quotes)
-                exe_clean = exe.strip('"').strip("'")
+        long_appid = self.convert_appid_to_long(appid)
 
-                # Check if it's a Windows path (C:\, D:\, etc.)
-                is_windows_path = len(exe_clean) > 2 and exe_clean[1:3] == ':\\'
+        return {
+            "name": name,
+            "exec": f"steam steam://rungameid/{long_appid}",
+            "image": icon if icon else "",
+            "category": "steam-shortcut",
+            "favorite": False,
+            "appid": str(long_appid),
+            "last_played": last_played,
+            "source": "steam"
+        }
 
-                # Skip if it's a Windows path (invalid on Linux)
-                if is_windows_path:
-                    return None
+    def scan_steam_shortcuts(self) -> List[Dict[str, Any]]:
+        """Scan Steam shortcuts"""
+        games = []
+        if not self.config.get("steam", {}).get("enabled", True):
+            return games
 
-                # For Linux paths, check if executable exists
-                expanded_path = os.path.expanduser(exe_clean)
-                if not os.path.exists(expanded_path) and not exe_clean.startswith('steam://'):
-                    # Skip if file doesn't exist and it's not a Steam URI
-                    return None
+        steam_path = self.expand_path("~/.local/share/Steam")
+        userdata_path = steam_path / "userdata"
 
-            # Convert short AppID to long AppID for steam:// URI
-            long_appid = self.convert_appid_to_long(short_appid) if short_appid else 0
+        if not userdata_path.exists():
+            return games
 
-            # Determine category based on game type
-            exe_clean = exe.strip('"').strip("'") if exe else ""
-            if "PortProton" in exe or "portproton" in exe.lower():
-                category = "steam_proton"
-            else:
-                category = "steam_app_0"
+        for user_dir in userdata_path.iterdir():
+            if user_dir.is_dir():
+                shortcuts_file = user_dir / "config" / "shortcuts.vdf"
+                if shortcuts_file.exists():
+                    games.extend(self.parse_vdf_shortcuts(shortcuts_file))
 
-            # Use Steam URI to launch non-Steam games through Steam
-            exec_cmd = f"steam steam://rungameid/{long_appid}"
+        return games
 
-            return {
-                "name": name,
-                "exec": exec_cmd,
-                "image": icon if icon and os.path.exists(os.path.expanduser(icon)) else "",
-                "category": category,
-                "favorite": False,
-                "appid": str(long_appid),
-                "last_played": app.get('LastPlayTime', 0),
-                "source": "steam-shortcuts"
-            }
+    def scan_desktop_files(self) -> List[Dict[str, Any]]:
+        """Scan .desktop files"""
+        games = []
+        desktop_dirs = [
+            Path.home() / ".local/share/applications",
+            Path("/usr/share/applications"),
+            Path("/usr/local/share/applications")
+        ]
 
-        except Exception as e:
-            print(f"Error processing shortcut: {e}", file=sys.stderr)
-            return None
+        for desktop_dir in desktop_dirs:
+            if not desktop_dir.exists():
+                continue
+
+            for desktop_file in desktop_dir.glob("*.desktop"):
+                game_data = self.parse_desktop_file(desktop_file)
+                if game_data:
+                    games.append(game_data)
+
+        return games
 
     def parse_desktop_file(self, desktop_path: Path) -> Dict[str, Any]:
-        """Parse a .desktop file and extract game information"""
+        """Parse .desktop file"""
         try:
             with open(desktop_path, 'r', encoding='utf-8') as f:
                 content = f.read()
 
-            # Extract Name
+            if "Categories=" not in content or "Game" not in content:
+                return None
+
             name_match = re.search(r'^Name=(.+)$', content, re.MULTILINE)
-            name = name_match.group(1) if name_match else desktop_path.stem
+            if not name_match:
+                return None
+            name = name_match.group(1)
 
-            # Extract Exec for category detection
             exec_match = re.search(r'^Exec=(.+)$', content, re.MULTILINE)
-            exec_cmd_original = exec_match.group(1) if exec_match else ""
+            if not exec_match:
+                return None
+            exec_cmd = exec_match.group(1)
 
-            # Extract Path
-            path_match = re.search(r'^Path=(.+)$', content, re.MULTILINE)
-            path_value = path_match.group(1) if path_match else ""
-
-            # Extract Icon
             icon_match = re.search(r'^Icon=(.+)$', content, re.MULTILINE)
             icon = icon_match.group(1) if icon_match else ""
-
-            # Determine category based on exec, path, or icon (check for PortProton anywhere)
-            is_portproton = any([
-                "PortProton" in exec_cmd_original,
-                "portproton" in exec_cmd_original.lower(),
-                "PortProton" in path_value,
-                "portproton" in path_value.lower(),
-                "PortProton" in icon,
-                "portproton" in icon.lower()
-            ])
-
-            category = "steam_proton" if is_portproton else "desktop"
+            image_path = self.resolve_icon_path(icon) if icon else ""
 
             return {
                 "name": name,
-                "exec": exec_cmd_original,
-                "image": icon if icon and os.path.exists(os.path.expanduser(icon)) else "",
-                "category": category,
+                "exec": exec_cmd,
+                "image": image_path,
+                "category": "desktop",
                 "favorite": False,
-                "last_played": 0,
-                "source": "desktop"
+                "source": "desktop",
+                "last_played": 0
             }
 
-        except Exception as e:
-            print(f"Error parsing desktop file {desktop_path}: {e}", file=sys.stderr)
+        except Exception:
             return None
 
-    def scan_desktop_files(self) -> List[Dict[str, Any]]:
-        """Scan .desktop files in applications directory and Desktop for PortProton games only"""
-        games = []
-        seen_games = set()  # Track game names to avoid duplicates
+    def resolve_icon_path(self, icon: str) -> str:
+        """Resolve icon name to full path"""
+        if icon.startswith("/"):
+            return icon
 
-        # Scan both Desktop and applications directory (Desktop has priority)
-        search_dirs = [
-            Path.home() / "Bureau",  # Desktop folder (French locale) - Priority
-            Path.home() / "Desktop",  # Desktop folder (English locale) - Priority
-            Path.home() / ".local/share/applications"
+        icon_dirs = [
+            Path.home() / ".local/share/icons",
+            Path("/usr/share/icons"),
+            Path("/usr/share/pixmaps")
         ]
 
-        for applications_dir in search_dirs:
-            if not applications_dir.exists():
+        for icon_dir in icon_dirs:
+            if not icon_dir.exists():
                 continue
 
-            # Look for .desktop files that are PortProton games
-            for desktop_file in applications_dir.glob("*.desktop"):
-                try:
-                    with open(desktop_file, 'r', encoding='utf-8') as f:
-                        content = f.read()
+            for ext in ["png", "svg", "jpg", "xpm"]:
+                for size in ["256x256", "128x128", "64x64", "48x48"]:
+                    icon_path = icon_dir / "hicolor" / size / "apps" / f"{icon}.{ext}"
+                    if icon_path.exists():
+                        return str(icon_path)
 
-                    # Only scan PortProton games (not generic desktop files)
-                    if "PortProton" in content:
-                        game_data = self.parse_desktop_file(desktop_file)
-                        # Only add if it's a PortProton game (category steam_proton)
-                        if game_data and game_data.get("category") == "steam_proton":
-                            game_name = game_data.get("name", "")
-                            # Skip if already seen (Desktop has priority over applications)
-                            if game_name in seen_games:
-                                continue
+                icon_path = icon_dir / f"{icon}.{ext}"
+                if icon_path.exists():
+                    return str(icon_path)
 
-                            # Additional filter: skip Steam tools
-                            if not any(tool in game_name.lower() for tool in ["millennium", "steam rom manager", "steamtools", "steam_proton", "steam linux runtime"]):
-                                games.append(game_data)
-                                seen_games.add(game_name)
-
-                except Exception as e:
-                    continue
-
-        return games
-
-    def scan_steam_shortcuts(self) -> List[Dict[str, Any]]:
-        """Scan Steam shortcuts.vdf files for non-Steam games added to Steam"""
-        games = []
-
-        if not self.config.get("steam", {}).get("enabled", True):
-            return games
-
-        # Find Steam installation directory
-        steam_paths = [
-            Path.home() / ".local/share/Steam",
-            Path.home() / ".steam/steam",
-            Path.home() / "Game_Steam/steam",
-        ]
-
-        # Also check from library paths
-        library_paths = self.config.get("steam", {}).get("library_paths", [])
-        for lib_path_str in library_paths:
-            lib_path = self.expand_path(lib_path_str)
-            # Go up to steam root (steamapps -> steam)
-            if lib_path.name == "steamapps" and lib_path.parent.exists():
-                steam_paths.append(lib_path.parent)
-
-        # Search for shortcuts.vdf in userdata directories
-        for steam_path in steam_paths:
-            if not steam_path.exists():
-                continue
-
-            userdata_path = steam_path / "userdata"
-            if not userdata_path.exists():
-                continue
-
-            # Scan all user directories
-            for user_dir in userdata_path.iterdir():
-                if not user_dir.is_dir():
-                    continue
-
-                shortcuts_file = user_dir / "config" / "shortcuts.vdf"
-                if shortcuts_file.exists():
-                    print(f"Found shortcuts.vdf: {shortcuts_file}", file=sys.stderr)
-                    shortcuts = self.parse_vdf_shortcuts(shortcuts_file)
-                    games.extend(shortcuts)
-
-        return games
+        return icon
 
     def scan_heroic_library(self) -> List[Dict[str, Any]]:
-        """Scan Heroic Games Launcher library (Epic, GOG, Amazon, Sideload)"""
+        """Scan Heroic Games Launcher library"""
         games = []
 
-        heroic_config = self.config.get("heroic", {})
-        if not heroic_config.get("enabled", True):
+        if not self.config.get("heroic", {}).get("enabled", True):
             return games
 
-        # Get config paths (support multiple paths)
-        config_paths = heroic_config.get("config_paths", ["~/.config/heroic"])
-        if isinstance(config_paths, str):
-            config_paths = [config_paths]
+        config_paths = self.config.get("heroic", {}).get("config_paths", [])
+        scan_epic = self.config.get("heroic", {}).get("scan_epic", True)
+        scan_gog = self.config.get("heroic", {}).get("scan_gog", True)
+        scan_amazon = self.config.get("heroic", {}).get("scan_amazon", True)
+        scan_sideload = self.config.get("heroic", {}).get("scan_sideload", True)
 
-        # Get scan options
-        scan_epic = heroic_config.get("scan_epic", True)
-        scan_gog = heroic_config.get("scan_gog", True)
-        scan_amazon = heroic_config.get("scan_amazon", True)
-        scan_sideload = heroic_config.get("scan_sideload", True)
-
-        # Map of library file to runner type and scan flag
-        libraries = {}
-        if scan_epic:
-            libraries["legendary_library.json"] = "epic"
-        if scan_gog:
-            libraries["gog_library.json"] = "gog"
-        if scan_amazon:
-            libraries["nile_library.json"] = "amazon"
-
-        # Scan each config path
-        for config_path_str in config_paths:
-            heroic_path = self.expand_path(config_path_str)
+        for config_path in config_paths:
+            heroic_path = self.expand_path(config_path)
 
             if not heroic_path.exists():
                 continue
 
-            # Scan store libraries (Epic, GOG, Amazon)
-            for lib_file, runner in libraries.items():
-                lib_path = heroic_path / "store_cache" / lib_file
-                if lib_path.exists():
+            stores = []
+            if scan_epic:
+                stores.append(("legendary", "epic"))
+            if scan_gog:
+                stores.append(("gog_store", "gog"))
+            if scan_amazon:
+                stores.append(("nile_config", "amazon"))
+
+            use_parallel = self.config.get("steamgriddb", {}).get("parallel_requests", True)
+
+            for store_dir, runner in stores:
+                library_path = heroic_path / "store_cache" / store_dir / "library.json"
+                installed_path = heroic_path / "store_cache" / store_dir / "installed.json"
+
+                if library_path.exists():
                     try:
-                        with open(lib_path, 'r') as f:
+                        with open(library_path, 'r') as f:
                             data = json.load(f)
 
-                        # Handle library format (list or dict of games)
-                        game_list = data.get("library", []) if isinstance(data, dict) else data
+                        installed_games = set()
+                        if installed_path.exists():
+                            with open(installed_path, 'r') as f:
+                                installed_data = json.load(f)
+                                installed_games = {g.get("app_name", "") for g in installed_data.get("installed", [])}
 
-                        for game_data in game_list:
-                            if isinstance(game_data, dict) and game_data.get("is_installed", False):
-                                app_name = game_data.get("app_name", "")
-                                title = game_data.get("title", game_data.get("name", "Unknown"))
+                        for game in data.get("library", []):
+                            app_name = game.get("app_name", "")
+                            if app_name not in installed_games:
+                                continue
 
-                                # Build launch command
-                                exec_cmd = f"heroic://launch/{runner}/{app_name}"
+                            title = game.get("title", "Unknown")
+                            art = game.get("art_cover", game.get("art_square", ""))
+                            
+                            cover_url = "" if use_parallel else self.get_heroic_cover_url(app_name, runner, art)
 
-                                games.append({
-                                    "name": title,
-                                    "exec": exec_cmd,
-                                    "image": game_data.get("art_cover", game_data.get("art_square", "")),
-                                    "category": runner,
-                                    "favorite": False,
-                                    "source": runner,
-                                    "last_played": 0,
-                                    "appid": app_name
-                                })
-                    except Exception as e:
-                        print(f"Error loading Heroic {runner} library from {heroic_path}: {e}", file=sys.stderr)
+                            games.append({
+                                "name": title,
+                                "exec": f"heroic://launch/{runner}/{app_name}",
+                                "image": cover_url,
+                                "category": runner,
+                                "favorite": False,
+                                "source": runner,
+                                "last_played": 0,
+                                "appid": app_name
+                            })
+                    except Exception:
+                        pass
 
-            # Scan sideload apps
             if scan_sideload:
                 sideload_path = heroic_path / "sideload_apps" / "library.json"
                 if sideload_path.exists():
@@ -492,26 +653,27 @@ class GameLauncher:
                             if game.get("is_installed", False):
                                 app_name = game.get("app_name", "")
                                 title = game.get("title", "Unknown")
-
-                                exec_cmd = f"heroic://launch/sideload/{app_name}"
+                                art = game.get("art_cover", game.get("art_square", ""))
+                                
+                                cover_url = "" if use_parallel else self.get_heroic_cover_url(app_name, "sideload", art)
 
                                 games.append({
                                     "name": title,
-                                    "exec": exec_cmd,
-                                    "image": game.get("art_cover", game.get("art_square", "")),
+                                    "exec": f"heroic://launch/sideload/{app_name}",
+                                    "image": cover_url,
                                     "category": "sideload",
                                     "favorite": False,
                                     "source": "heroic",
                                     "last_played": 0,
                                     "appid": app_name
                                 })
-                    except Exception as e:
-                        print(f"Error loading Heroic sideload apps from {heroic_path}: {e}", file=sys.stderr)
+                    except Exception:
+                        pass
 
         return games
 
     def load_manual_games(self) -> List[Dict[str, Any]]:
-        """Load manually configured games from games.toml"""
+        """Load manually configured games"""
         games = []
         games_toml_path = self.config_path.parent / "games.toml"
 
@@ -523,7 +685,6 @@ class GameLauncher:
                 data = tomllib.load(f)
 
             for game in data.get("games", []):
-                # Expand image path
                 if "image" in game:
                     game["image"] = str(self.expand_path(game["image"]))
 
@@ -531,8 +692,8 @@ class GameLauncher:
                 game["last_played"] = game.get("last_played", 0)
                 games.append(game)
 
-        except Exception as e:
-            print(f"Error loading manual games: {e}", file=sys.stderr)
+        except Exception:
+            pass
 
         return games
 
@@ -540,12 +701,10 @@ class GameLauncher:
         """Load game entries from config.toml"""
         games = []
 
-        # Get box_art_dir from config (can be in animations section or top-level)
         box_art_dir = self.config.get("box_art_dir") or self.config.get("animations", {}).get("box_art_dir", "")
         if box_art_dir:
             box_art_dir = self.expand_path(box_art_dir)
 
-        # Get entries from config
         entries = self.config.get("entries", [])
 
         for entry in entries:
@@ -553,7 +712,6 @@ class GameLauncher:
             launch_command = entry.get("launch_command", "")
             path_box_art = entry.get("path_box_art", "")
 
-            # Construct full image path
             image_path = ""
             if path_box_art and box_art_dir:
                 image_path = str(box_art_dir / path_box_art)
@@ -572,8 +730,43 @@ class GameLauncher:
 
         return games
 
+    def should_include_game(self, game: Dict[str, Any]) -> bool:
+        """Filter games based on config rules"""
+        filtering = self.config.get("filtering", {})
+        
+        if filtering.get("games_only", False):
+            category = game.get("category", "").lower()
+            name = game.get("name", "").lower()
+            
+            if category in ["launcher", "desktop"]:
+                if category == "desktop" and ("steam" in name or "heroic" in name or game.get("appid")):
+                    pass
+                else:
+                    return False
+            
+            exclude_patterns = [
+                "launcher", "manager", "runtime", "proton", "tool",
+                "steamtools", "mod manager", "nexus mods", "vortex",
+                "portproton", "protonup", "goverlay", "piper",
+                "parsec", "moonlight", "millennium"
+            ]
+            
+            if any(p in name for p in exclude_patterns):
+                return False
+        
+        excluded_categories = filtering.get("exclude_categories", [])
+        if game.get("category") in excluded_categories:
+            return False
+        
+        excluded_keywords = filtering.get("exclude_keywords", [])
+        game_name_lower = game.get("name", "").lower()
+        if any(k.lower() in game_name_lower for k in excluded_keywords):
+            return False
+        
+        return True
+
     def merge_games(self) -> List[Dict[str, Any]]:
-        """Merge Steam, Heroic, manual games, desktop files, and config entries, avoiding duplicates"""
+        """Merge all game sources"""
         steam_games = self.scan_steam_library()
         steam_shortcuts = self.scan_steam_shortcuts()
         desktop_games = self.scan_desktop_files()
@@ -581,59 +774,61 @@ class GameLauncher:
         manual_games = self.load_manual_games()
         config_entries = self.load_config_entries()
 
-        # Use dict to avoid duplicates (keyed by name)
         games_dict = {}
 
-        # Add Steam games first (highest priority for images)
         for game in steam_games:
-            games_dict[game["name"]] = game
+            if self.should_include_game(game):
+                games_dict[game["name"]] = game
 
-        # Add Steam non-Steam games (shortcuts)
         for game in steam_shortcuts:
-            if game["name"] in games_dict:
-                games_dict[game["name"]].update(game)
-            else:
-                games_dict[game["name"]] = game
+            if self.should_include_game(game):
+                if game["name"] in games_dict:
+                    games_dict[game["name"]].update(game)
+                else:
+                    games_dict[game["name"]] = game
 
-        # Add Heroic games
         for game in heroic_games:
-            if game["name"] in games_dict:
-                games_dict[game["name"]].update(game)
-            else:
-                games_dict[game["name"]] = game
+            if self.should_include_game(game):
+                if game["name"] in games_dict:
+                    games_dict[game["name"]].update(game)
+                else:
+                    games_dict[game["name"]] = game
 
-        # Add config entries
         for game in config_entries:
-            if game["name"] in games_dict:
-                games_dict[game["name"]].update(game)
-            else:
-                games_dict[game["name"]] = game
+            if self.should_include_game(game):
+                if game["name"] in games_dict:
+                    games_dict[game["name"]].update(game)
+                else:
+                    games_dict[game["name"]] = game
 
-        # Add .desktop file games (only if not already present - lowest priority)
         for game in desktop_games:
-            if game["name"] not in games_dict:
-                games_dict[game["name"]] = game
+            if self.should_include_game(game):
+                if game["name"] not in games_dict:
+                    games_dict[game["name"]] = game
 
-        # Add/override with manual games (highest priority)
         for game in manual_games:
             if game["name"] in games_dict:
-                # Manual entry overrides Steam/Heroic entry
                 games_dict[game["name"]].update(game)
             else:
                 games_dict[game["name"]] = game
 
-        return list(games_dict.values())
+        games = list(games_dict.values())
+        
+        # Fetch images in parallel if enabled
+        sgdb_config = self.config.get("steamgriddb", {})
+        if sgdb_config.get("enabled", False) and sgdb_config.get("parallel_requests", True):
+            games = self.fetch_images_parallel(games)
+        
+        return games
 
     def sort_games(self, games: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Sort games based on configuration"""
+        """Sort games"""
         sort_by = self.config.get("behavior", {}).get("sort_by", "name")
         show_favorites_first = self.config.get("behavior", {}).get("show_favorites_first", True)
 
-        # Sort by favorites first if enabled
         if show_favorites_first:
             games.sort(key=lambda g: (not g.get("favorite", False)))
 
-        # Then apply secondary sort
         if sort_by == "recent":
             games.sort(key=lambda g: g.get("last_played", 0), reverse=True)
         elif sort_by == "playtime":
@@ -644,7 +839,7 @@ class GameLauncher:
         return games
 
     def load_wallust_colors(self) -> Dict[str, str]:
-        """Load colors from wallust cache and flatten structure"""
+        """Load colors from wallust cache"""
         wallust_path = self.expand_path(
             self.config.get("appearance", {}).get("wallust_path", "~/.cache/wal/wal.json")
         )
@@ -653,20 +848,14 @@ class GameLauncher:
             with open(wallust_path, 'r') as f:
                 data = json.load(f)
 
-            # Flatten the structure for easier QML access
             colors = {}
-
-            # Add special colors (background, foreground, cursor)
             if "special" in data:
                 colors.update(data["special"])
-
-            # Add color palette (color0-color15)
             if "colors" in data:
                 colors.update(data["colors"])
 
             return colors
-        except Exception as e:
-            print(f"Error loading wallust colors: {e}", file=sys.stderr)
+        except Exception:
             return {}
 
     def get_all_games(self) -> Dict[str, Any]:
@@ -691,7 +880,6 @@ class GameLauncher:
 
 
 def main():
-    """Main entry point"""
     launcher = GameLauncher()
     launcher.output_json()
 
