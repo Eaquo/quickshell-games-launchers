@@ -74,6 +74,8 @@ library_paths = [
     "~/.local/share/Steam/steamapps",
     "/mnt/games/Steam/steamapps",  # Ajoutez vos chemins
 ]
+Optionnel Steamgrid si clef Api:
+api_key = ""
 ```
 
 2. **Configurer Heroic:**
