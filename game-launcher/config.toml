@@ -13,20 +13,74 @@ enabled = true
 library_paths = [
     "~/.local/share/Steam/steamapps",
     "~/Game_Steam/steam/steamapps",
-    # Si plusieurs disques avec Steam:
-    # "/mnt/games/Steam/steamapps",
 ]
+
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║                         STEAMGRIDDB + OPTIMISATION                        ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+[steamgriddb]
+# Activer SteamGridDB pour de meilleures images
+enabled = true
+
+# Votre clé API SteamGridDB 
+api_key = ""
+
+# Type d'image à télécharger
+image_type = "grid"
+
+# Préférer les images animées
+prefer_animated = false
+
+# Fallback vers Steam CDN
+fallback_to_steam = true
+
+# Dimensions spécifiques
+dimensions = ["920x430"] 
+
+# Styles d'images
+styles = []
+
+# Types MIME
+mimes = ["image/png", "image/jpeg"]
+
+# Filtres de contenu
+nsfw = "false"
+humor = "false"
+epilepsy = "false"
+
 # Fetch cover images from Steam
 fetch_covers = true
 
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║          🚀 NOUVELLES OPTIONS DE PERFORMANCE (TRÈS IMPORTANT!)            ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+# ⚡ Cache des URLs d'images (évite de re-télécharger à chaque lancement)
+# Durée en heures - Recommandé: 24 (1 jour)
+cache_ttl_hours = 24
+
+# ⚡ Requêtes parallèles (TRÈS RECOMMANDÉ - accélère de 10-50x)
+# Active le téléchargement simultané des images
+parallel_requests = true
+
+# ⚡ Nombre de requêtes simultanées
+# - 10 = bon équilibre (recommandé)
+# - 5 = pour connexion lente
+# - 20 = pour connexion ultra-rapide
+max_workers = 10
+
+# ⚡ Timeout par requête (en secondes)
+# Plus court = plus rapide si jeu sans image
+# Recommandé: 3 (réduit de 5s)
+request_timeout = 3
+
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║                          AUTRES CONFIGURATIONS                            ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
 [heroic]
 enabled = true
-config_paths = [
-    "~/.config/heroic",
-    # Si Heroic installé ailleurs (Flatpak par exemple):
-    # "~/.var/app/com.heroicgameslauncher.hgl/config/heroic",
-]
-# Scan pour Epic Games, GOG, Amazon Games et sideload apps
+config_paths = ["~/.config/heroic"]
 scan_epic = true
 scan_gog = true
 scan_amazon = true
@@ -34,7 +88,24 @@ scan_sideload = true
 
 [lutris]
 enabled = false
-# Lutris sera ajouté plus tard si nécessaire
+
+[filtering]
+# Afficher UNIQUEMENT les vrais jeux
+games_only = false
+
+# Catégories à exclure
+exclude_categories = ["desktop"]
+
+# Mots-clés à exclure
+exclude_keywords = [
+    "Launcher",
+    "Manager", 
+    "Runtime",
+    "SDK",
+    "Tool",
+    "Aimlabs",
+    "Steam"
+]
 
 [appearance]
 use_wallust = true
@@ -46,15 +117,14 @@ blur_background = true
 background_opacity = 0.85
 
 [behavior]
-sort_by = "recent"  # recent, name, playtime, favorite
+sort_by = "recent"
 show_favorites_first = true
 close_on_launch = true
 
 [animations]
 enabled = true
 duration_ms = 300
-ease_type = "OutCubic"  # Linear, InQuad, OutQuad, InOutQuad, OutCubic
-
+ease_type = "OutCubic"
 
 box_art_dir = "/home/florian/.config/quickshell/game-launcher/box-art"
 
@@ -67,16 +137,3 @@ path_box_art = "library.png"
 title = "Script Game"
 launch_command = "/home/florian/.config/hypr/UserScripts/EditScriptGame.sh"
 path_box_art = "Neo.png"
-
-[[entries]]
-title = "Ankama Launcher"
-launch_command = "/home/florian/Applications/Ankama_4a46072423842bfe366d20988ab1bba1.AppImage --no-sandbox %U"
-path_box_art = "ankama.png"
-
-[[entries]]
-title = "Vortex"
-launch_command = "/home/florian/Applications/NexusMods.App.x86_64_3315cb0ddb1ababf804f21649039c4e4.AppImage %u"
-path_box_art = "vortex.png"
-
-
-
