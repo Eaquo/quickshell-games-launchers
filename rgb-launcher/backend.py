@@ -96,7 +96,7 @@ class RGBLauncher:
 
     def get_current_brightness(self) -> int:
         """Get current RGB brightness from file"""
-        brightness_file = Path.home() / ".config/hypr/Openrgb/brightness.txt"
+        brightness_file = Path.home() / ".config/quickshell/rgb-launcher/script/brightness.txt"
         try:
             if brightness_file.exists():
                 with open(brightness_file, 'r') as f:
@@ -112,6 +112,7 @@ class RGBLauncher:
         pywal_colors = {}
         if self.config.get("appearance", {}).get("use_pywal", True):
             pywal_colors = self.load_pywal_colors()
+
 
         brightness = self.get_current_brightness()
 

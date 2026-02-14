@@ -1,5 +1,6 @@
 #!/bin/bash
 # Script wrapper pour lancer les modes RGB de manière détachée
+SCRIPT_PATH="/home/florian/.config/quickshell/rgb-launcher/script"
 
 MODE="$1"
 
@@ -17,7 +18,7 @@ sleep 0.3
 
 # Lancer le nouveau mode de manière complètement détachée
 # setsid crée une nouvelle session pour détacher le processus
-setsid python3 /home/florian/.config/hypr/Openrgb/OpenRGB_Controller.py "$MODE" </dev/null >/dev/null 2>&1 &
+setsid python3 $SCRIPT_PATH/OpenRGB_Controller.py "$MODE" </dev/null >/dev/null 2>&1 &
 
 # Désassocier complètement du shell parent
 disown

@@ -132,6 +132,8 @@ Rectangle {
                         text: gameName.substring(0, 2).toUpperCase()
                         font.pixelSize: 48
                         font.bold: true
+                        font.capitalization: Font.Capitalize
+                        font.family: "Open Sans Regular"
                         color: gameColors.foreground || "#ffffff"
                         opacity: 0.5
                     }
@@ -163,6 +165,8 @@ Rectangle {
                     anchors.centerIn: parent
                     text: lastPlayed === 0 ? "NEW" : "RECENT"
                     font.pixelSize: 9
+                    font.capitalization: Font.Capitalize
+                    font.family: "Open Sans Regular"
                     font.bold: true
                     color: "#1a1a1a"
                 }
@@ -225,7 +229,7 @@ Rectangle {
 
                 function getPlatformColor() {
                     if (gameSource === "steam") return gameColors.color8 || "#5A1E80"
-                    if (gameSource === "epic") return gameColors.color0 || "#040000"
+                    if (gameSource === "epic") return gameColors.color10 || "#040000"
                     if (gameSource === "gog") return gameColors.color9 || "#7828AA"
                     if (gameSource === "amazon") return gameColors.color11 || "#92502D"
                     if (gameSource === "heroic") return gameColors.color13 || "#C8A46E"
@@ -239,7 +243,7 @@ Rectangle {
                     text: getPlatformIcon()
                     font.pixelSize: 14
                     font.family: getPlatformFont()
-                    color: gameSource === "epic" ? "#ffffff" : (gameColors.background || "#040000")
+                    color: gameSource === "epic" ? "#ffffff" : (gameColors.background || '#ef2c2c2c')
 
                     function getPlatformFont() {
                         // Steam and Amazon use Brands font
@@ -268,7 +272,7 @@ Rectangle {
                 height: 24
                 width: categoryText.width + 16
                 radius: 12
-                color: gameColors.color2 || "#555555"
+                color: gameColors.color14 || "#555555"
                 opacity: 0.9
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
@@ -278,9 +282,11 @@ Rectangle {
                     id: categoryText
                     anchors.centerIn: parent
                     text: gameCategory
-                    font.pixelSize: 11
-                    font.capitalization: Font.AllUppercase
-                    color: gameColors.background || "#ffffff"
+                    font.pixelSize: 12
+                    font.capitalization: Font.Capitalize
+                    font.family: "Open Sans Regular"
+                    font.bold: true
+                    color: gameColors.color1 || "#ffffff"
                 }
             }
         }
@@ -297,6 +303,8 @@ Rectangle {
                 anchors.margins: 12
                 text: gameName
                 font.pixelSize: 14
+                font.family: "Open Sans Regular"
+                font.capitalization: Font.Capitalize
                 font.bold: true
                 color: gameColors.foreground || "#ffffff"
                 wrapMode: Text.WordWrap

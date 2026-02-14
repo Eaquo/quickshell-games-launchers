@@ -5,6 +5,8 @@ import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 
+
+
 Rectangle {
     id: launcher
 
@@ -91,7 +93,7 @@ Rectangle {
         pendingClose = shouldClose;
 
         // Use wrapper script to launch mode in detached session
-        const wrapperScript = "/home/florian/.config/quickshell/rgb-launcher/launch_rgb_mode.sh";
+        const wrapperScript = Qt.resolvedUrl("./launch_rgb_mode.sh");
         modeProcess.command = [wrapperScript, modeArg];
         modeProcess.running = true;
     }
@@ -133,7 +135,7 @@ Rectangle {
         id: modesProcess
         command: ["python3", "backend.py"]
         running: false
-        workingDirectory: "/home/florian/.config/quickshell/rgb-launcher"
+        workingDirectory: Qt.resolvedUrl(".").toString().replace("file://", "")
 
         property string jsonBuffer: ""
 
@@ -175,7 +177,12 @@ Rectangle {
     // Process to read active sequence
     Process {
         id: sequenceReader
-        command: ["cat", "/home/florian/.config/hypr/Openrgb/sequence.txt"]
+        command: [
+            "cat",
+            Qt.resolvedUrl("./script/sequence.txt")
+                .toString()
+                .replace("file://", "")
+        ]
         running: false
 
         property string sequenceBuffer: ""
@@ -446,6 +453,14 @@ Rectangle {
             border.color: colors.color4 || "#888888"
             border.width: 1
 
+            Timer {
+                id: brightnessDebounce
+                interval: 300
+                onTriggered: {
+                    saveBrightness(currentBrightness);
+                }
+            }
+
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 12
@@ -516,32 +531,16 @@ Rectangle {
 
                     onValueChanged: {
                         currentBrightness = Math.round(value);
+                        brightnessDebounce.restart();
                     }
 
                     onPressedChanged: {
                         if (!pressed) {
+                            brightnessDebounce.stop();
                             saveBrightness(currentBrightness);
                         }
                     }
-
-
-                    background: Rectangle {
-                        x: brightnessSlider.leftPadding + brightnessSlider.availableWidth / 2 - width / 2
-                        y: brightnessSlider.topPadding
-                        width: 6
-                        height: brightnessSlider.availableHeight
-                        radius: 3
-                        color: colors.color1 || "#444444"
-
-                        Rectangle {
-                            anchors.bottom: parent.bottom
-                            width: parent.width
-                            height: brightnessSlider.visualPosition * parent.height
-                            radius: 3
-                            color: colors.color5 || "#00ffff"
-                        }
-                    }
-
+                    
                     handle: Rectangle {
                         x: brightnessSlider.leftPadding + brightnessSlider.availableWidth / 2 - width / 2
                         y: brightnessSlider.topPadding + brightnessSlider.visualPosition * (brightnessSlider.availableHeight - height)
@@ -567,13 +566,12 @@ Rectangle {
             MouseArea {
                 anchors.fill: parent
                 acceptedButtons: Qt.NoButton
-                propagateComposedEvents: true
 
                 onWheel: (wheel) => {
                     const delta = wheel.angleDelta.y > 0 ? 5 : -5;
-                    const newValue = Math.max(0, Math.min(100, currentBrightness + delta));
+                    const newValue = Math.max(10, Math.min(100, brightnessSlider.value + delta));
                     brightnessSlider.value = newValue;
-                    saveBrightness(newValue);
+
                     wheel.accepted = true;
                 }
             }
@@ -612,7 +610,7 @@ Rectangle {
     function saveBrightness(brightness) {
         console.log("Saving and applying brightness:", brightness);
 
-        const cmd = "echo " + brightness + " > /home/florian/.config/hypr/Openrgb/brightness.txt && python3 /home/florian/.config/hypr/Openrgb/apply_brightness.py";
+        const cmd = "echo " + brightness + " > $HOME/.config/quickshell/rgb-launcher/script/brightness.txt";
 
         brightnessProcess.command = ["bash", "-c", cmd];
         brightnessProcess.running = true;
