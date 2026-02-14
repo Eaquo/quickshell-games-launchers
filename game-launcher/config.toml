@@ -23,7 +23,11 @@ library_paths = [
 enabled = true
 
 # Votre clé API SteamGridDB 
+<<<<<<< HEAD
 api_key = "b7e804fd09a660b775c4081148339ca9"
+=======
+api_key = ""
+>>>>>>> 9541eaf0afb2fee3e7f56efe5db26e75a7d7f59f
 
 # Type d'image à télécharger
 image_type = "grid"
@@ -136,4 +140,8 @@ path_box_art = "library.png"
 [[entries]]
 title = "Script Game"
 launch_command = "/home/florian/.config/hypr/UserScripts/EditScriptGame.sh"
+<<<<<<< HEAD
 path_box_art = "Neo.png"
+=======
+path_box_art = "Neo.png"
+>>>>>>> 9541eaf0afb2fee3e7f56efe5db26e75a7d7f59f
