@@ -82,6 +82,10 @@ hyprctl reload
 Le fichier principal de configuration :
 
 ```toml
+Important compte SteamGridDB pour clef api
+api_key = ""
+
+
 [display]
 position = "center"      # center, top, bottom, left, right
 grid_size = [4, 3]       # [colonnes, lignes]

@@ -23,7 +23,7 @@ library_paths = [
 enabled = true
 
 # Votre clé API SteamGridDB 
-api_key = ""
+api_key = "b7e804fd09a660b775c4081148339ca9"
 
 # Type d'image à télécharger
 image_type = "grid"

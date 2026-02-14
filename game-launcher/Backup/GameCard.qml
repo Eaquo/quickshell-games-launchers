@@ -106,6 +106,7 @@ Rectangle {
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 smooth: true
+                cache: true
 
                 // Applique les coins arrondis directement à l'image
                 layer.enabled: true

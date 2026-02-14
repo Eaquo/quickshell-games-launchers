@@ -1,5 +1,7 @@
 import QtQuick
 import QtQuick.Controls
+import Quickshell.Hyprland
+import Quickshell.Wayland
 import QtQuick.Layouts
 import QtQuick.Effects
 import Quickshell
