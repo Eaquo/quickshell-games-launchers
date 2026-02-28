@@ -106,7 +106,16 @@ category = "fps"
 favorite = true
 ```
 
-4. **Créer le dossier box-art:**
+3. **Script de lancement du quikshell game:**
+
+    ~/.config/quickshell/game-launcher/toggle.sh
+
+Hyprland key:
+
+    bind = SUPER, G, exec, ~HOME/.config/quickshell/game-launcher/toggle.sh
+
+
+5. **Créer le dossier box-art:**
 ```bash
 mkdir -p ~/.config/quickshell/game-launcher/box-art
 ```
