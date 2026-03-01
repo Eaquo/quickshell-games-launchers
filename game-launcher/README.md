@@ -4,6 +4,8 @@ Un launcher de jeux moderne et stylisé pour Hyprland, construit avec Quickshell
 
 ![Game Launcher](https://via.placeholder.com/800x600?text=Game+Launcher+Preview)
 
+![Game Preview](game-launcher/image_2.png)
+
 ## Fonctionnalités
 
 - **Détection automatique des jeux Steam** depuis votre bibliothèque
