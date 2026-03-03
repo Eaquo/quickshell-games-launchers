@@ -1,7 +1,7 @@
 # Quickshell Launchers
 Collection of Quickshell launchers for Hyprland with pywal/wallust integration.
 
-![Game Launcher Preview](__game-launcher/Readme/asset/image.png__)
+![Game Launcher Preview](__/Readme/asset/image.png__)
 
 ## 📦 Projects
 
@@ -9,7 +9,7 @@ Collection of Quickshell launchers for Hyprland with pywal/wallust integration.
 
 Game launcher with multi-platform support and a sleek interface.
 
-![Game Launcher Preview](__game-launcher/Readme/asset/image_2.png__)
+![Game Launcher Preview](__/Readme/asset/image_2.png__)
 
 **Features:**
 - 🎯 Support for Steam, non-Steam games, Heroic (Epic/GOG/Amazon), and manual entries
