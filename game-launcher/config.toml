@@ -30,6 +30,7 @@ close_on_launch = true
 enabled = true
 library_paths = [
     "~/.local/share/Steam/steamapps",
+    "~/.var/app/com.valvesoftware.Steam/data/Steam/steamapps", #Flatpak Steam
     #"~/Game_Steam/steam/steamapps",
 ]
 
