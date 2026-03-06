@@ -1,0 +1,102 @@
+# Game Launcher Configuration
+
+[display]
+position = "bottom"  # center, top, bottom
+orientation = "horizontal"  # horizontal
+grid_size = [3, 1]   # colonnes x lignes (columns x rows)
+item_width = 400  # Card width (220 for vertical left/right, 400 for horizontal)
+item_height = 200  # Card height
+spacing = 20
+
+[appearance]
+use_wallust = true
+wallust_path = "~/.cache/wal/wal.json"
+show_game_names = true
+show_categories = true
+show_playtime = true
+blur_background = true
+background_opacity = 0.85
+
+[behavior]
+sort_by = "recent"
+show_favorites_first = true
+close_on_launch = true
+
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║                          STEAM GAME CONF                                 ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+[steam]
+enabled = true
+library_paths = [
+    "~/.local/share/Steam/steamapps",
+    #"~/Game_Steam/steam/steamapps",
+]
+
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║                         STEAMGRIDDB + OPTIMISATION                       ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+[steamgriddb]
+# Activer SteamGridDB pour de meilleures images
+enabled = true
+
+# Votre clé API SteamGridDB 
+api_key = ""
+
+# Type d'image à télécharger
+image_type = "grid"
+
+
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║                          HEROIC GAME CONF                                ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+[heroic]
+enabled = true
+config_paths = ["~/.config/heroic"]
+scan_epic = true
+scan_gog = true
+scan_amazon = true
+scan_sideload = true
+
+[lutris]
+enabled = false
+
+[filtering]
+
+games_only = false
+
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║                          EXCLURE                                         ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+# Categories to exclude
+exclude_categories = ["desktop"]
+
+# Keywords to exclude
+exclude_keywords = [
+    "Launcher",
+    "Manager", 
+    "Runtime",
+    "SDK",
+    "Tool",
+    "Aimlabs",
+    "Steam"
+]
+
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║                          MANUAL APPLICATION                              ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+[animations]
+enabled = true
+duration_ms = 300
+ease_type = "OutCubic"
+
+box_art_dir = "~/.config/quickshell/game-launcher/box-art"
+
+[[entries]]
+title = "📚 Game Library"
+launch_command = "kitty -e python3 /home/florian/.config/quickshell/game-launcher/modules/service/list_games.py"
+path_box_art = "library.png"
