@@ -3,27 +3,13 @@
 # This script toggles the game launcher visibility
 
 LAUNCHER_DIR="$HOME/.config/quickshell/game-launcher"
-PID_FILE="$HOME/.cache/quickshell-game-launcher.pid"
 
-# Check if launcher is running
-if [ -f "$PID_FILE" ]; then
-    PID=$(cat "$PID_FILE")
-
-    # Check if process is actually running
-    if ps -p "$PID" > /dev/null 2>&1; then
-        # Kill the launcher
-        kill "$PID"
-        pkill -f "gamepad.py" || true
-        rm -f "$PID_FILE"
-        exit 0
-    else
-        # PID file exists but process is dead, clean up
-        rm -f "$PID_FILE"
-    fi
+# Check if launcher is running via pgrep
+if pgrep -f "^quickshell.*game-launcher" > /dev/null 2>&1; then
+    pkill -f "^quickshell.*game-launcher"
+    pkill -f "gamepad.py" 2>/dev/null || true
+    exit 0
 fi
 
-# Launch the game launcher with full path
+# Launch the game launcher
 quickshell -c "$LAUNCHER_DIR" &
-
-# Save PID
-echo $! > "$PID_FILE"
