@@ -45,7 +45,7 @@ Game launcher with multi-platform support and a sleek animated interface.
 |--------|--------|
 | ![](https://img.shields.io/badge/D--pad-grey?style=flat-square) | Navigate the grid |
 | ![](https://img.shields.io/badge/A-1d7b36?style=flat-square&logo=xbox&logoColor=white) | Launch selected game |
-| ![](https://img.shields.io/badge/SELECT-2c3e50?style=flat-square&logo=xbox&logoColor=white)) | favorite |
+| ![](https://img.shields.io/badge/SELECT-2c3e50?style=flat-square&logo=xbox&logoColor=white) | favorite |
 | ![](https://img.shields.io/badge/B-c0392b?style=flat-square&logo=xbox&logoColor=white) | Close |
 
 ## 🛠️ Installation
