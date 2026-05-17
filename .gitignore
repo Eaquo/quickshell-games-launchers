@@ -28,3 +28,6 @@ Thumbs.db
 # User-specific
 games.toml.backup
 *.log
+favorites.json
+cache/
+.claude/

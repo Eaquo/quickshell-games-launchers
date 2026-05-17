@@ -30,6 +30,7 @@ close_on_launch = true
 enabled = true
 library_paths = [
     "~/.local/share/Steam/steamapps",
+    "~/.var/app/com.valvesoftware.Steam/data/Steam/steamapps", #Flatpak Steam
     #"~/Game_Steam/steam/steamapps",
 ]
 
@@ -42,10 +43,26 @@ library_paths = [
 enabled = true
 
 # Votre clé API SteamGridDB 
-api_key = ""
+api_key = "b7e804fd09a660b775c4081148339ca9"
 
 # Type d'image à télécharger
-image_type = "grid"
+image_type = "hero"
+prefer_animated = true
+
+# dimensions
+dimensions = [
+]
+styles = [
+]
+parallel_requests = true
+max_workers = 12
+request_timeout = 3
+cache_ttl_hours = 48
+
+# Trier les images par nombre de j'aimes uniquement (true = tri strict par likes)
+sort_by_likes = true
+# Nombre minimum de j'aimes pour accepter une image (0 = pas de filtre)
+min_likes = 0
 
 
 # ╔══════════════════════════════════════════════════════════════════════════╗
@@ -62,6 +79,7 @@ scan_sideload = true
 
 [lutris]
 enabled = false
+db_path = "~/.local/share/lutris/pga.db"
 
 [filtering]
 
@@ -97,6 +115,6 @@ ease_type = "OutCubic"
 box_art_dir = "~/.config/quickshell/game-launcher/box-art"
 
 [[entries]]
-title = "📚 Game Library"
-launch_command = "kitty -e python3 /home/florian/.config/quickshell/game-launcher/modules/service/list_games.py"
+title = "Game Library"
+launch_command = "~/.config/quickshell/game-launcher/modules/service/run_in_terminal.sh python3 ~/.config/quickshell/game-launcher/modules/service/list_games.py"
 path_box_art = "library.png"

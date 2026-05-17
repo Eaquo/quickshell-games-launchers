@@ -1,404 +1,281 @@
-# Game Launcher pour Hyprland
+# Quickshell Game Launcher
 
-Un launcher de jeux moderne et stylisé pour Hyprland, construit avec Quickshell (Qt6/QML).
+Un launcher de jeux fait pour Hyprland, construit avec Quickshell (Qt6/QML) et un backend Python.
+L'idée : avoir une interface rapide, jolie, qui se fond dans ton setup — covers automatiques, thème adaptatif via wallust, navigation clavier.
 
-![Game Launcher](https://via.placeholder.com/800x600?text=Game+Launcher+Preview)
+https://github.com/user-attachments/assets/703e48dd-86d1-49cb-8bc8-1fe45b89e9f5
 
-## Fonctionnalités
+![screenshot](asset/image.png)
+![screenshot 2](asset/image_2.png)
 
-- **Détection automatique des jeux Steam** depuis votre bibliothèque
-- **Jeux manuels** via fichier TOML
-- **Interface moderne** avec grille personnalisable
-- **Navigation clavier** complète (flèches, Enter, Escape)
-- **Recherche en temps réel** avec filtrage
-- **Intégration wallust** pour thème adaptatif
-- **Animations fluides** et effets visuels
-- **Favoris** et catégories
-- **Covers Steam automatiques**
+---
+
+## Ce que ça fait
+
+- Détecte automatiquement tes jeux **Steam** en scannant les fichiers `.acf`
+- Supporte **Heroic Games Launcher** (Epic, GOG, Amazon, sideload)
+- Télécharge les covers depuis **SteamGridDB** (heroes animées, grids, logos)
+- Thème adaptatif via **wallust** — les couleurs suivent ton wallpaper
+- Navigation clavier complète (flèches, Enter, Escape, recherche live)
+- Jeux manuels configurables en TOML
+- Cache des images avec TTL configurable
+
+---
+
+## Installation
+
+### Dépendances
+
+```bash
+# Quickshell
+yay -S quickshell-git
+
+# Python
+sudo pacman -S python python-toml python-requests
+```
+
+### Mise en place
+
+```bash
+git clone ... ~/.config/quickshell/game-launcher
+cd ~/.config/quickshell/game-launcher
+```
+
+Teste que le backend tourne :
+
+```bash
+python3 modules/service/backend.py
+```
+
+Tu devrais voir un JSON avec tes jeux.
+
+### Keybind Hyprland
+
+Dans `~/.config/hypr/hyprland.conf` :
+
+```conf
+bind = SUPER, G, exec, ~/.config/quickshell/game-launcher/toggle.sh
+```
+
+---
+
+## Configuration
+
+Tout se passe dans `config.toml` à la racine du projet.
+
+### Affichage
+
+```toml
+[display]
+position = "bottom"          # center, top, bottom
+orientation = "horizontal"
+grid_size = [3, 1]           # [colonnes, lignes]
+item_width = 400
+item_height = 200
+spacing = 20
+```
+
+### Steam
+
+```toml
+[steam]
+enabled = true
+library_paths = [
+    "~/.local/share/Steam/steamapps",
+    "~/.var/app/com.valvesoftware.Steam/data/Steam/steamapps",  # Flatpak
+    # "/mnt/games/SteamLibrary/steamapps",                      # disque externe
+]
+```
+
+### Heroic (Epic / GOG / Amazon)
+
+```toml
+[heroic]
+enabled = true
+config_paths = ["~/.config/heroic"]
+scan_epic = true
+scan_gog = true
+scan_amazon = true
+scan_sideload = true
+```
+
+### Apparence & wallust
+
+```toml
+[appearance]
+use_wallust = true
+wallust_path = "~/.cache/wal/wal.json"
+show_game_names = true
+blur_background = true
+background_opacity = 0.85
+```
+
+### Filtrage
+
+Tu peux exclure des catégories ou des mots-clés pour virer les outils Steam qui polluent ta liste :
+
+```toml
+[filtering]
+exclude_categories = ["desktop"]
+exclude_keywords = ["Launcher", "Manager", "Runtime", "SDK", "Tool"]
+```
+
+---
+
+## SteamGridDB
+
+SteamGridDB est une base de données communautaire d'assets visuels pour les jeux — heroes, grids, logos, icônes. C'est bien plus riche que le CDN Steam de base, surtout pour les jeux non-Steam ou les covers animées.
+
+### Obtenir une clé API
+
+1. Crée un compte sur [steamgriddb.com](https://www.steamgriddb.com)
+2. Va dans **Preferences → API** (ou directement `/profile/preferences/api`)
+3. Génère une clé et colle-la dans `config.toml`
+
+### Configuration
+
+```toml
+[steamgriddb]
+enabled = true
+api_key = "ta_clé_ici"
+
+# Type d'image principal
+# "hero"  → grande bannière horizontale (1920×620)
+# "grid"  → cover verticale style Steam (600×900)
+# "logo"  → logo PNG transparent
+image_type = "hero"
+
+# Préférer les versions animées (WebP/APNG) quand disponibles
+prefer_animated = true
+
+# Trier par nombre de likes — prend l'image la plus populaire en premier
+sort_by_likes = true
+
+# Filtre minimum de likes (0 = accepte tout)
+min_likes = 0
+
+# Perf : requêtes en parallèle
+parallel_requests = true
+max_workers = 12
+request_timeout = 3      # secondes avant abandon
+
+# Cache local : évite de retélécharger à chaque lancement
+cache_ttl_hours = 48
+```
+
+### Comment ça marche
+
+Le backend fait une recherche par nom de jeu sur l'API SteamGridDB, récupère la liste des images disponibles, les trie par likes, et télécharge la meilleure. Les images sont cachées localement dans `~/.cache/quickshell/game-launcher/`.
+
+Si aucune image n'est trouvée sur SteamGridDB, le launcher bascule automatiquement sur le CDN Steam (`library_600x900.jpg`), puis sur un placeholder avec les initiales du jeu.
+
+### Types d'images comparés
+
+| Type | Dimensions | Usage |
+|------|------------|-------|
+| `hero` | 1920×620 | Bannière large, beau en layout horizontal |
+| `grid` | 600×900 | Cover verticale, idéal en grille |
+| `logo` | variable (PNG transparent) | Pour superposer sur un fond custom |
+
+---
+
+## Jeux manuels
+
+Pour ajouter un jeu (ou une app) qui n'est pas dans Steam/Heroic :
+
+```toml
+[[entries]]
+title = "Heroic Games"
+launch_command = "heroic"
+path_box_art = "heroic.png"  # relatif à box_art_dir
+
+[[entries]]
+title = "📚 Game Library"
+launch_command = "kitty -e python3 ~/.config/quickshell/game-launcher/modules/service/list_games.py"
+path_box_art = "library.png"
+```
+
+Les covers manuelles vont dans le dossier défini par `box_art_dir` (par défaut `~/.config/quickshell/game-launcher/box-art`).
+
+---
+
+## Raccourcis clavier
+
+| Touche | Action |
+|--------|--------|
+| `SUPER + G` | Ouvrir / Fermer le launcher |
+| `↑ ↓ ← →` | Naviguer dans la grille |
+| `Enter` | Lancer le jeu sélectionné |
+| `Escape` | Fermer |
+| `/ ` ou `F` | Aller dans la barre de recherche |
+| Double-clic | Lancer un jeu |
+
+---
 
 ## Structure du projet
 
 ```
-~/.config/quickshell/game-launcher/
-├── shell.qml              # Point d'entrée Quickshell
-├── GameLauncher.qml       # Composant principal
-├── GameCard.qml           # Carte de jeu individuelle
-├── backend.py             # Backend Python (scan Steam + TOML)
-├── config.toml            # Configuration principale
-├── games.toml             # Jeux manuels
-├── toggle.sh              # Script de toggle
-├── requirements.txt       # Dépendances Python
-└── README.md              # Cette documentation
+game-launcher/
+├── shell.qml                      # Point d'entrée Quickshell
+├── config.toml                    # Config principale
+├── requirements.txt
+├── toggle.sh                      # Toggle show/hide
+├── modules/
+│   ├── GameLauncher.qml           # Composant principal + grille
+│   ├── GameCard.qml               # Carte individuelle
+│   ├── LaunchOverlay.qml          # Overlay de lancement
+│   └── service/
+│       ├── backend.py             # Scan Steam/Heroic, SteamGridDB, TOML
+│       ├── gamepad.py             # Support manette
+│       ├── list_games.py          # Affichage bibliothèque
+│       └── py_vdf_list.py
+├── box-art/                       # Covers manuelles
+├── cache/                         # Cache images SteamGridDB
+└── Readme/
+    ├── README.md
+    ├── README_en.md
+    └── asset/
+        ├── Quickshell-game.mp4
+        ├── image.png
+        └── image_2.png
 ```
 
-## Installation
-
-### 1. Dépendances
-
-```bash
-# Quickshell (si pas déjà installé)
-yay -S quickshell-git
-
-# Python et dépendances
-sudo pacman -S python python-pip
-pip install -r ~/.config/quickshell/game-launcher/requirements.txt
-
-# Optionnel : wallust pour les thèmes
-yay -S wallust
-```
-
-### 2. Vérification de l'installation
-
-Les fichiers sont déjà créés dans `~/.config/quickshell/game-launcher/`.
-
-Vérifiez que le backend fonctionne :
-
-```bash
-cd ~/.config/quickshell/game-launcher/
-python3 backend.py
-```
-
-Vous devriez voir un JSON avec vos jeux Steam et la configuration.
-
-### 3. Configuration Hyprland
-
-Ajoutez un keybind dans votre `~/.config/hypr/hyprland.conf` :
-
-```conf
-# Game Launcher Toggle
-bind = SUPER, G, exec, ~/.config/quickshell/game-launcher/toggle.sh
-```
-
-Rechargez Hyprland :
-
-```bash
-hyprctl reload
-```
-
-## Configuration
-
-### config.toml
-
-Le fichier principal de configuration :
-
-```toml
-Important compte SteamGridDB pour clef api
-api_key = ""
-
-
-[display]
-position = "center"      # center, top, bottom, left, right
-grid_size = [4, 3]       # [colonnes, lignes]
-item_width = 220
-item_height = 300
-spacing = 20
-
-[steam]
-enabled = true
-library_paths = [
-    "~/.local/share/Steam/steamapps",
-]
-fetch_covers = true
-
-[appearance]
-use_wallust = true
-wallust_path = "~/.cache/wallust/colors.json"
-show_game_names = true
-show_categories = true
-show_playtime = true
-blur_background = true
-background_opacity = 0.85
-
-[behavior]
-sort_by = "recent"              # recent, name, playtime, favorite
-show_favorites_first = true
-close_on_launch = true
-
-[animations]
-enabled = true
-duration_ms = 300
-ease_type = "OutCubic"
-```
-
-### games.toml
-
-Ajoutez vos jeux personnalisés :
-
-```toml
-[[games]]
-name = "Elden Ring"
-exec = "gamescope -W 3440 -H 1440 -f -- steam steam://rungameid/1245620"
-image = "~/Pictures/games/elden-ring.png"
-category = "souls-like"
-favorite = true
-
-[[games]]
-name = "Mon Jeu Indie"
-exec = "/usr/bin/mon-jeu"
-image = "~/Pictures/games/indie.png"
-category = "indie"
-favorite = false
-```
-
-## Utilisation
-
-### Raccourcis clavier
-
-| Touche | Action |
-|--------|--------|
-| `SUPER + G` | Ouvrir/Fermer le launcher |
-| `↑ ↓ ← →` | Navigation dans la grille |
-| `Enter` | Lancer le jeu sélectionné |
-| `Escape` | Fermer le launcher |
-| `/` ou `F` | Focus sur la recherche |
-| `Double-clic` | Lancer un jeu |
-
-### Recherche
-
-Appuyez sur `/` ou `F` pour rechercher :
-- Par nom de jeu
-- Par catégorie
-
-### Favoris
-
-Dans `games.toml`, marquez un jeu comme favori :
-
-```toml
-[[games]]
-name = "Mon Jeu Préféré"
-favorite = true
-```
-
-Les favoris apparaissent en premier (si `show_favorites_first = true`).
-
-## Personnalisation
-
-### Changer la position
-
-Dans `config.toml` :
-
-```toml
-[display]
-position = "center"  # Changez en: top, bottom, left, right
-```
-
-### Ajuster la grille
-
-```toml
-[display]
-grid_size = [5, 2]  # 5 colonnes, 2 lignes
-```
-
-### Désactiver les animations
-
-```toml
-[animations]
-enabled = false
-```
-
-### Utiliser sans wallust
-
-```toml
-[appearance]
-use_wallust = false
-```
-
-Le launcher utilisera des couleurs par défaut.
-
-### Covers personnalisées
-
-Pour les jeux Steam, les covers sont automatiquement téléchargées depuis le CDN Steam.
-
-Pour les jeux manuels, placez vos images dans `~/Pictures/games/` :
-
-```toml
-[[games]]
-name = "Mon Jeu"
-image = "~/Pictures/games/mon-jeu.png"  # Format PNG ou JPG
-```
-
-Ratio recommandé : **2:3** (ex: 600x900px)
-
-## Intégration Steam
-
-### Détection automatique
-
-Le backend scanne automatiquement :
-- `~/.local/share/Steam/steamapps/*.acf`
-
-### Ajouter d'autres bibliothèques Steam
-
-Si vous avez des jeux Steam sur d'autres disques :
-
-```toml
-[steam]
-library_paths = [
-    "~/.local/share/Steam/steamapps",
-    "/mnt/games/SteamLibrary/steamapps",
-]
-```
-
-### Lancer avec gamescope
-
-Pour un jeu Steam avec gamescope personnalisé :
-
-```toml
-[[games]]
-name = "Elden Ring"
-exec = "gamescope -W 2560 -H 1440 -f -r 144 -- steam steam://rungameid/1245620"
-category = "souls-like"
-favorite = true
-```
-
-## Intégration Wallust
-
-Le launcher s'adapte automatiquement aux couleurs de votre wallpaper via wallust.
-
-### Générer les couleurs
-
-```bash
-wallust run ~/Pictures/wallpapers/current.png
-```
-
-Le launcher lira automatiquement `~/.cache/wallust/colors.json`.
-
-### Schéma de couleurs utilisé
-
-- `background` : Fond du launcher et cartes
-- `foreground` : Texte principal
-- `color1` : Barre de recherche
-- `color2` : Badges de catégories
-- `color3` : Étoile des favoris
-- `color5` : Bordures et accents (cyan par défaut)
+---
 
 ## Dépannage
 
-### Le launcher ne s'affiche pas
-
-1. Vérifiez que Quickshell est installé :
-   ```bash
-   quickshell --version
-   ```
-
-2. Testez le backend :
-   ```bash
-   cd ~/.config/quickshell/game-launcher/
-   python3 backend.py
-   ```
-
-3. Vérifiez les logs Quickshell :
-   ```bash
-   quickshell -c ~/.config/quickshell/game-launcher/shell.qml
-   ```
-
-### Pas de jeux Steam détectés
-
-1. Vérifiez que Steam est installé :
-   ```bash
-   ls ~/.local/share/Steam/steamapps/*.acf
-   ```
-
-2. Vérifiez le chemin dans `config.toml` :
-   ```toml
-   [steam]
-   library_paths = ["~/.local/share/Steam/steamapps"]
-   ```
-
-### Les covers ne s'affichent pas
-
-Les covers Steam sont téléchargées depuis :
-```
-https://cdn.cloudflare.steamstatic.com/steam/apps/{APPID}/library_600x900.jpg
+**Le launcher ne s'ouvre pas**
+```bash
+quickshell -c ~/.config/quickshell/game-launcher/shell.qml
+# Regarde les erreurs dans le terminal
 ```
 
-Vérifiez votre connexion internet. Si une cover n'existe pas, un placeholder avec initiales s'affiche.
+**Pas de jeux Steam**
+```bash
+ls ~/.local/share/Steam/steamapps/*.acf
+# Vérifie que le chemin dans config.toml correspond
+```
 
-### Erreur Python "No module named 'toml'"
+**Les covers SteamGridDB ne chargent pas**
+- Vérifie que ta clé API est correcte
+- Regarde `cache/image_cache.json` pour voir les URLs résolues
+- Mets `request_timeout` à une valeur plus haute si ta connexion est lente
 
-Installez la dépendance :
+**Erreur `No module named 'toml'`**
 ```bash
 pip install toml
+# ou
+sudo pacman -S python-toml
 ```
 
-### Le script toggle.sh ne fonctionne pas
-
-Vérifiez les permissions :
-```bash
-chmod +x ~/.config/quickshell/game-launcher/toggle.sh
-```
-
-## Architecture technique
-
-### Backend Python (`backend.py`)
-
-- Scanne les fichiers `.acf` Steam pour détecter les jeux
-- Parse les fichiers TOML (config + jeux manuels)
-- Génère un JSON avec toutes les données
-- Gère le tri et le filtrage
-- Intégration wallust
-
-### Frontend QML
-
-**`shell.qml`**
-- Point d'entrée Quickshell
-- Gestion de la fenêtre overlay
-- Gestion de la visibilité
-
-**`GameLauncher.qml`**
-- Composant principal
-- Grille de jeux avec GridView
-- Barre de recherche et filtrage
-- Navigation clavier
-- Communication avec le backend Python
-
-**`GameCard.qml`**
-- Carte individuelle pour chaque jeu
-- Cover, nom, catégorie, favori
-- Effets hover et sélection
-- Ombres et animations
-
-### Communication
-
-```
-Python (backend.py) → JSON → QML (Process)
-                            ↓
-                         GameLauncher
-                            ↓
-                    [Game, Game, Game...]
-```
-
-## Roadmap / Améliorations futures
-
-- [ ] Support Epic Games Store
-- [ ] Support Lutris
-- [ ] Statistiques de temps de jeu (Steam API)
-- [ ] Tri par popularité
-- [ ] Thèmes personnalisés (sans wallust)
-- [ ] Export/Import de configurations
-- [ ] Multi-écrans
-- [ ] Grid layout alternatif (liste)
-- [ ] Raccourcis personnalisables
-
-## Contribution
-
-Ce projet est open-source. N'hésitez pas à :
-- Signaler des bugs
-- Proposer des améliorations
-- Ajouter des fonctionnalités
-
-## Licence
-
-MIT License
+---
 
 ## Crédits
 
 Inspiré par [caelestia-dots/shell](https://github.com/caelestia-dots/shell)
 
 Construit avec :
-- [Quickshell](https://github.com/outfoxxed/quickshell) - Qt6/QML pour Wayland
-- [Wallust](https://codeberg.org/explosion-mental/wallust) - Générateur de colorschemes
+- [Quickshell](https://github.com/outfoxxed/quickshell) — Qt6/QML pour Wayland
+- [SteamGridDB](https://www.steamgriddb.com) — API d'assets visuels
+- [Wallust](https://codeberg.org/explosion-mental/wallust) — colorschemes depuis le wallpaper
 - Python 3 + TOML
-
----
-
-**Profitez de votre collection de jeux !** 🎮

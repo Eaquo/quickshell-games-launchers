@@ -25,6 +25,12 @@ Rectangle {
     property int spacing: config?.display?.spacing ?? 20
 
     property int sidebarWidth: 68
+    property int favoriteCount: {
+        var n = 0
+        for (var i = 0; i < gamesData.length; i++)
+            if (gamesData[i] && gamesData[i].favorite) n++
+        return n
+    }
 
     width: sidebarWidth + spacing + (itemWidth * gridColumns) + (spacing * (gridColumns + 1))
     height: (itemHeight * gridRows) + (spacing * (gridRows + 1)) + 60 + 44 + spacing
@@ -61,6 +67,7 @@ Rectangle {
     Component.onCompleted: {
         launcher.forceActiveFocus()
         loadGames()
+        gamepadService.running = true
     }
 
     // Available sources computed from data
@@ -95,7 +102,7 @@ Rectangle {
                 searchText = ""
                 searchField.clear()
             } else {
-                launcher.closeRequested()
+                Qt.quit()
             }
             event.accepted = true
         } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
@@ -109,6 +116,8 @@ Rectangle {
             navigateUp(); event.accepted = true
         } else if (event.key === Qt.Key_Down && !searchField.activeFocus) {
             navigateDown(); event.accepted = true
+        } else if (event.key === Qt.Key_F && (event.modifiers & Qt.AltModifier) && !searchField.activeFocus) {
+            toggleFavorite(null); event.accepted = true
         } else if (event.key === Qt.Key_Backspace && !searchField.activeFocus) {
             if (searchText.length > 0) {
                 searchText = searchText.slice(0, -1)
@@ -122,6 +131,8 @@ Rectangle {
             event.accepted = true
         }
     }
+
+    Keys.onEscapePressed: Qt.quit()
 
     onSearchTextChanged:   filterGames()
     onSelectedSourceChanged: filterGames()
@@ -146,12 +157,14 @@ Rectangle {
             gamesProcess.output = ""
         }
     }
-
+    
     function loadGames() { gamesProcess.running = true }
 
     function filterGames() {
         let result = gamesData.slice()
-        if (selectedSource !== "all")
+        if (selectedSource === "favorites")
+            result = result.filter(g => g.favorite)
+        else if (selectedSource !== "all")
             result = result.filter(g => (g.source || "") === selectedSource)
         if (searchText.trim() !== "") {
             const q = searchText.toLowerCase()
@@ -183,18 +196,139 @@ Rectangle {
         if (filteredGames.length === 0) return
         launchGame(filteredGames[selectedIndex])
     }
+    function navigateSource(direction) {
+        var sources = ["all"]
+        if (favoriteCount > 0) sources.push("favorites")
+        sources = sources.concat(availableSources)
+        var current = sources.indexOf(selectedSource)
+        if (current < 0) current = 0
+        if (direction === "up")
+            current = (current - 1 + sources.length) % sources.length
+        else
+            current = (current + 1) % sources.length
+        selectedSource = sources[current]
+        selectedIndex = 0
+    }
+
+    function toggleFavorite(game) {
+        if (!game) {
+            if (filteredGames.length === 0) return
+            game = filteredGames[selectedIndex]
+        }
+        var newFav = !game.favorite
+        // Optimistic local update
+        var updated = []
+        for (var i = 0; i < gamesData.length; i++) {
+            if (gamesData[i].name === game.name && gamesData[i].source === game.source) {
+                var copy = {}
+                for (var k in gamesData[i]) copy[k] = gamesData[i][k]
+                copy.favorite = newFav
+                updated.push(copy)
+            } else {
+                updated.push(gamesData[i])
+            }
+        }
+        gamesData = updated
+        // If we just removed the last favorite while on the favorites tab, go back to "all"
+        if (selectedSource === "favorites" && !newFav) {
+            var stillHasFav = false
+            for (var j = 0; j < gamesData.length; j++)
+                if (gamesData[j].favorite) { stillHasFav = true; break }
+            if (!stillHasFav) selectedSource = "all"
+        }
+        filterGames()
+        // Persist to file
+        toggleFavoriteProcess.command = [
+            "python3",
+            Qt.resolvedUrl("service/backend.py").toString().replace("file://", ""),
+            "toggle",
+            game.name,
+            game.source || ""
+        ]
+        toggleFavoriteProcess.running = true
+    }
 
     Process {
         id: launchProcess
         running: false
     }
 
-    function launchGame(game) {
-        launchProcess.command = ["sh", "-c", game.exec]
-        launchProcess.running = true
-        if (config?.behavior?.close_on_launch ?? true) launcher.closeRequested()
+    Process {
+        id: toggleFavoriteProcess
+        running: false
+        stdout: SplitParser { onRead: data => {} }
     }
 
+    function launchGame(game, cardItem) {
+        launchProcess.command = ["sh", "-c", "setsid " + game.exec + " &"]
+        launchProcess.running = true
+        launcher.enabled = false
+        if (config?.behavior?.close_on_launch ?? true) {
+            launchOverlay.colors = colors
+            // Récupère la position de la carte dans le repère du launcher
+            var pos = cardItem ? cardItem.mapToItem(launcher, 0, 0) : null
+            launchOverlay.show(
+                game.image || "",
+                game.name || "",
+                game.logo || "",
+                pos ? pos.x : 0,
+                pos ? pos.y : 0,
+                cardItem ? cardItem.width : launcher.width,
+                cardItem ? cardItem.height : launcher.height
+            )
+        }
+    }
+
+    Process {
+    id: gamepadService
+    command: ["/usr/bin/python3", Qt.resolvedUrl("service/gamepad.py").toString().replace("file://", "")]
+    running: false   // ← false, on démarre dans onCompleted
+
+    stdout: SplitParser {
+        onRead: function(line) {
+            try {
+                var evt = JSON.parse(line)
+                if (evt.type === "button") {
+                    gamepadHandler.handle(evt.action)
+                }
+            } catch(e) {}
+        }
+    }
+}
+ 
+    // ── Handler des actions manette ────────────────────────────────────────────
+    QtObject {
+        id: gamepadHandler
+    
+        function handle(action) {
+            switch(action) {
+                case "left":
+                    navigateLeft()
+                    break
+                case "right":
+                    navigateRight()
+                    break
+                case "select":
+                    launchSelectedGame()
+                    break
+                case "close":
+                    launcher.closeRequested()
+                    break
+                case "toggle":
+                    launcher.visible = !launcher.visible
+                    break
+                case "up":
+                    navigateSource("up")
+                    break
+                case "down":
+                    navigateSource("down")
+                    break
+                case "favorite":
+                    toggleFavorite(null)
+                    break
+            }
+        }
+    }
     // ═══════════════════════════════════════════════════════════════════════
     // LAYOUT PRINCIPAL
     // ═══════════════════════════════════════════════════════════════════════
@@ -280,6 +414,74 @@ Rectangle {
 
                 // Séparateur
                 Rectangle {
+                    width: parent.width * 0.6
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    height: 1
+                    color: Qt.rgba(1, 1, 1, 0.1)
+                }
+
+                // Bouton Favoris — visible uniquement si au moins 1 favori
+                Rectangle {
+                    visible: launcher.favoriteCount > 0
+                    width: parent.width
+                    height: width
+                    radius: 22
+                    color: launcher.selectedSource === "favorites"
+                        ? Qt.rgba(
+                            parseInt((colors.color5||"#73ff00").slice(1,3),16)/255,
+                            parseInt((colors.color5||"#73ff00").slice(3,5),16)/255,
+                            parseInt((colors.color5||"#73ff00").slice(5,7),16)/255,
+                            0.22)
+                        : (favSrcMouse.containsMouse ? Qt.rgba(1,1,1,0.07) : "transparent")
+                    border.color: launcher.selectedSource === "favorites" ? (colors.color5 || "#73ff00") : "transparent"
+                    border.width: 2
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 3
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: ""
+                            font.family: "Font Awesome 7 Free Solid"
+                            font.pixelSize: 18
+                            color: launcher.selectedSource === "favorites" ? (colors.color5||"#73ff00") : (colors.foreground||"#ffffff")
+                            opacity: launcher.selectedSource === "favorites" ? 1.0 : 0.45
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                        }
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "Favs"
+                            font.pixelSize: 9
+                            font.bold: launcher.selectedSource === "favorites"
+                            font.family: "Open Sans Regular"
+                            color: launcher.selectedSource === "favorites" ? (colors.color5||"#73ff00") : (colors.foreground||"#ffffff")
+                            opacity: launcher.selectedSource === "favorites" ? 1.0 : 0.4
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                        }
+                    }
+
+                    Rectangle {
+                        visible: launcher.selectedSource === "favorites"
+                        anchors.top: parent.top; anchors.right: parent.right
+                        anchors.topMargin: -3; anchors.rightMargin: -3
+                        width: 18; height: 18; radius: 9
+                        color: colors.color5 || "#73ff00"
+                        Text { anchors.centerIn: parent; text: launcher.favoriteCount; font.pixelSize: 8; font.bold: true; color: "#1a1a1a" }
+                    }
+
+                    MouseArea {
+                        id: favSrcMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: { launcher.selectedSource = "favorites"; launcher.forceActiveFocus() }
+                    }
+                }
+
+                // Séparateur favs / sources (visible si favoris présents)
+                Rectangle {
+                    visible: launcher.favoriteCount > 0
                     width: parent.width * 0.6
                     anchors.horizontalCenter: parent.horizontalCenter
                     height: 1
@@ -416,7 +618,7 @@ Rectangle {
                     anchors.right: clearBtn.left; anchors.rightMargin: 4
                     anchors.verticalCenter: parent.verticalCenter
                     height: parent.height - 4
-                    placeholderText: "Rechercher un jeu…"
+                    placeholderText: "Search for a game…"
                     placeholderTextColor: Qt.rgba(1,1,1,0.3)
                     color: colors.foreground || "#ffffff"
                     font.pixelSize: 14
@@ -495,7 +697,8 @@ Rectangle {
                         Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
                         Behavior on opacity { NumberAnimation { duration: 200 } }
                         onClicked: { gamesCarouselH.currentIndex = index; launcher.forceActiveFocus() }
-                        onLaunchRequested: { launchGame(modelData) }
+                        onLaunchRequested: { launchGame(modelData, this) }
+                        onFavoriteToggled: toggleFavorite(modelData)
                     }
 
                     Rectangle {
@@ -575,7 +778,8 @@ Rectangle {
                         Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
                         Behavior on opacity { NumberAnimation { duration: 200 } }
                         onClicked: { gamesCarouselV.currentIndex = index; launcher.forceActiveFocus() }
-                        onLaunchRequested: { launchGame(modelData) }
+                        onLaunchRequested: { launchGame(modelData, this) }
+                        onFavoriteToggled: toggleFavorite(modelData)
                     }
                 }
 
@@ -616,5 +820,9 @@ Rectangle {
         running: true
         NumberAnimation { target: launcher; property: "scale";   from: 0.8; to: 1.0; duration: config?.animations?.duration_ms ?? 300; easing.type: Easing.OutCubic }
         NumberAnimation { target: launcher; property: "opacity"; from: 0;   to: 1.0; duration: config?.animations?.duration_ms ?? 300; easing.type: Easing.OutCubic }
+    }
+    LaunchOverlay {
+        id: launchOverlay
+        onDone: Qt.quit()
     }
 }

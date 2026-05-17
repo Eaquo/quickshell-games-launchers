@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
+import QtMultimedia
 
 Rectangle {
     id: card
@@ -15,9 +16,14 @@ Rectangle {
     property int lastPlayed: 0  // Unix timestamp
     property real glowStrength: 0.8
     property real glowBlur: 12
+    property bool isWebM: gameImage.toLowerCase().endsWith(".webm")
+    property bool isAnimatedWebP: gameImage.toLowerCase().endsWith(".webp")
+    property bool isAnimated: isWebM || isAnimatedWebP
+    property real glowOpacity: 0.8
 
     signal clicked()
     signal launchRequested()
+    signal favoriteToggled()
 
     width: 220
     height: 300
@@ -41,34 +47,36 @@ Rectangle {
         ColorAnimation { duration: 200 }
     }
 
-    // Glow + Shadow effect
-    layer.enabled: true
+    // Glow + Shadow effect — layer uniquement sur la carte sélectionnée
+    layer.enabled: isSelected
     layer.effect: MultiEffect {
         shadowEnabled: true
-        shadowColor: isSelected ? (gameColors.color5 || "#00ffff") : "#80000000"
-        shadowOpacity: isSelected ? 0.8 : 0.5
-        shadowBlur: isSelected ? 1.0 : 0.4
-        shadowVerticalOffset: isSelected ? 8 : 4
+        shadowColor: gameColors.color5 || "#00ffff"
+        shadowOpacity: card.glowOpacity
+        shadowBlur: 1.0
+        shadowVerticalOffset: 8
         shadowHorizontalOffset: 0
     }
 
-    // Breathing animation when selected
+    // Breathing glow — anime card.glowOpacity, pas layer.effect directement
     SequentialAnimation {
         running: isSelected
         loops: Animation.Infinite
 
         NumberAnimation {
-            target: card.layer.effect
-            from: isSelected ? 0.8 : 0.4
-            to: isSelected ? 1.2 : 0.4
+            target: card
+            property: "glowOpacity"
+            from: 0.8
+            to: 1.2
             duration: 1500
             easing.type: Easing.InOutSine
         }
 
         NumberAnimation {
-            target: card.layer.effect
-            from: isSelected ? 1.2 : 0.4
-            to: isSelected ? 0.8 : 0.4
+            target: card
+            property: "glowOpacity"
+            from: 1.2
+            to: 0.8
             duration: 1500
             easing.type: Easing.InOutSine
         }
@@ -98,16 +106,50 @@ Rectangle {
             color: "#2a2a2a"
             clip: true
 
+            // Thumbnail statique pour WebP non sélectionné (1er frame uniquement, ~5MB vs centaines de MB)
+            // Sibling direct → clippé par la cover Rectangle (clip:true + radius) sans layer propre
             Image {
+                id: thumbnailImage
+                anchors.fill: parent
+                anchors.margins: 2
+                visible: card.isAnimatedWebP && !card.isSelected
+                source: visible ? gameImage : ""
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                cache: true
+            }
+
+            // Placeholder initiales pour WebM non sélectionné
+            Rectangle {
+                anchors.fill: parent
+                visible: card.isWebM && !card.isSelected
+                color: gameColors.color8 || "#333333"
+                Text {
+                    anchors.centerIn: parent
+                    text: gameName.substring(0, 2).toUpperCase()
+                    font.pixelSize: 48
+                    font.bold: true
+                    font.capitalization: Font.Capitalize
+                    font.family: "Open Sans Regular"
+                    color: gameColors.foreground || "#ffffff"
+                    opacity: 0.5
+                }
+            }
+
+            // Image statique ou WebP animé (sélectionné seulement pour les WebP)
+            AnimatedImage {
                 id: coverImage
                 anchors.fill: parent
-                anchors.margins: 2  // Déborde légèrement pour meilleur effet visuel
-                source: gameImage
+                anchors.margins: 2
+                visible: !card.isAnimated || card.isSelected
+                source: card.isWebM ? "" : (card.isAnimatedWebP && !card.isSelected ? "" : gameImage)
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 smooth: true
+                cache: false
+                playing: isSelected
+                paused: !isSelected
 
-                // Applique les coins arrondis directement à l'image
                 layer.enabled: true
                 layer.effect: MultiEffect {
                     maskEnabled: true
@@ -121,12 +163,12 @@ Rectangle {
                     }
                 }
 
-                // Fallback for missing images
+                // Fallback initiales image statique manquante
                 Rectangle {
                     anchors.fill: parent
-                    visible: coverImage.status === Image.Error || coverImage.status === Image.Null
+                    visible: !card.isAnimated &&
+                             (coverImage.status === Image.Error || coverImage.status === Image.Null)
                     color: gameColors.color8 || "#333333"
-
                     Text {
                         anchors.centerIn: parent
                         text: gameName.substring(0, 2).toUpperCase()
@@ -138,6 +180,34 @@ Rectangle {
                         opacity: 0.5
                     }
                 }
+            }
+
+            // Vidéo WebM — source vidée quand non sélectionnée pour libérer le buffer RAM
+            VideoOutput {
+                id: videoOutput
+                anchors.fill: parent
+                anchors.margins: 2
+                visible: card.isWebM && card.isSelected
+                layer.enabled: card.isWebM && card.isSelected
+                layer.effect: MultiEffect {
+                    maskEnabled: true
+                    maskThresholdMin: 0.5
+                    maskSource: ShaderEffectSource {
+                        sourceItem: Rectangle {
+                            width: videoOutput.width
+                            height: videoOutput.height
+                            radius: card.radius
+                        }
+                    }
+                }
+            }
+
+            MediaPlayer {
+                id: videoPlayer
+                source: (card.isWebM && card.isSelected) ? gameImage : ""
+                videoOutput: videoOutput
+                loops: MediaPlayer.Infinite
+                onSourceChanged: if (source !== "") play()
             }
 
             // Status badges (NOUVEAU/RÉCENT)
@@ -196,22 +266,38 @@ Rectangle {
                 }
             }
 
-            // Favorite star
+            // Heart button — always visible, clickable to toggle favorite
             Rectangle {
-                visible: isFavorite
+                id: favBtn
                 width: 32
                 height: 32
                 radius: 16
-                color: gameColors.color3 || "#ffaa00"
+                color: card.isFavorite
+                    ? (gameColors.color3 || "#ffaa00")
+                    : Qt.rgba(0, 0, 0, 0.45)
                 anchors.top: parent.top
                 anchors.right: parent.right
                 anchors.margins: 8
+                opacity: card.isFavorite ? 1.0 : (favBtnMouse.containsMouse ? 0.65 : 0.3)
+
+                Behavior on opacity { NumberAnimation { duration: 150 } }
+                Behavior on color   { ColorAnimation  { duration: 200 } }
 
                 Text {
                     anchors.centerIn: parent
-                    text: "★"
-                    font.pixelSize: 20
-                    color: "#1a1a1a"
+                    text: ""
+                    font.family: "Font Awesome 7 Free Solid"
+                    font.pixelSize: 14
+                    color: card.isFavorite ? "#1a1a1a" : "#ffffff"
+                    Behavior on color { ColorAnimation { duration: 200 } }
+                }
+
+                MouseArea {
+                    id: favBtnMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: card.favoriteToggled()
                 }
             }
 
