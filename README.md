@@ -27,24 +27,34 @@ https://github.com/user-attachments/assets/703e48dd-86d1-49cb-8bc8-1fe45b89e9f5
 
 ## Installation
 
-### Via AUR
+### Via AUR (recommandé)
 ```bash
+paru -S quickshell-games-launchers-git
+# ou
 yay -S quickshell-games-launchers-git
 ```
 
-La config se copie automatiquement dans `~/.config/quickshell/game-launcher/` au premier lancement.
+Puis au **premier lancement** pour initialiser la config :
+```bash
+quickshell-game
+```
+
+Les fichiers sont copiés dans `~/.config/quickshell/game-launcher/`.  
+**Les mises à jour suivantes sont automatiques** — un hook pacman synchronise les fichiers QML/scripts à chaque `paru -Syu`, sans toucher à ta config (`config.toml`, `games.toml`, `favorites.json`, `box-art/`).
 
 ### Avec makepkg
 ```bash
 git clone https://aur.archlinux.org/quickshell-games-launchers-git.git
 cd quickshell-games-launchers-git
 makepkg -si
+quickshell-game   # premier lancement pour initialiser
 ```
 
 ### Depuis les sources
 ```bash
-git clone https://github.com/Eaquo/Quickshell-Games.git
-cp -r Quickshell-Games/game-launcher ~/.config/quickshell/game-launcher
+git clone https://github.com/Eaquo/quickshell-games-launchers.git
+cp -r quickshell-games-launchers/game-launcher ~/.config/quickshell/game-launcher
+quickshell -p ~/.config/quickshell/game-launcher/shell.qml
 ```
 
 ### Dépendances
@@ -56,10 +66,10 @@ sudo pacman -S python qt6-declarative
 pip install vdf
 
 # Quickshell
-yay -S quickshell-git
+paru -S quickshell-git
 
 # Icônes
-yay -S ttf-font-awesome-7
+paru -S ttf-font-awesome-7
 ```
 
 ---
