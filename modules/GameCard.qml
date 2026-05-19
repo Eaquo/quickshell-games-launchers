@@ -274,11 +274,11 @@ Rectangle {
                 radius: 16
                 color: card.isFavorite
                     ? (gameColors.color3 || "#ffaa00")
-                    : Qt.rgba(0, 0, 0, 0.45)
+                    : "transparent"
                 anchors.top: parent.top
                 anchors.right: parent.right
                 anchors.margins: 8
-                opacity: card.isFavorite ? 1.0 : (favBtnMouse.containsMouse ? 0.65 : 0.3)
+                opacity: card.isFavorite ? 1.0 : (favBtnMouse.containsMouse ? 0.65 : 0.0)
 
                 Behavior on opacity { NumberAnimation { duration: 150 } }
                 Behavior on color   { ColorAnimation  { duration: 200 } }

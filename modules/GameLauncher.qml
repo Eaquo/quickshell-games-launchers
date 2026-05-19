@@ -25,6 +25,9 @@ Rectangle {
     property int spacing: config?.display?.spacing ?? 20
 
     property int sidebarWidth: 68
+    property bool bigPictureMode: false
+    property int screenW: 1920
+    property int screenH: 1080
     property int favoriteCount: {
         var n = 0
         for (var i = 0; i < gamesData.length; i++)
@@ -32,8 +35,8 @@ Rectangle {
         return n
     }
 
-    width: sidebarWidth + spacing + (itemWidth * gridColumns) + (spacing * (gridColumns + 1))
-    height: (itemHeight * gridRows) + (spacing * (gridRows + 1)) + 60 + 44 + spacing
+    width: bigPictureMode ? screenW : sidebarWidth + spacing + (itemWidth * gridColumns) + (spacing * (gridColumns + 1))
+    height: bigPictureMode ? screenH : (itemHeight * gridRows) + (spacing * (gridRows + 1)) + 60 + 44 + spacing
 
     focus: true
     activeFocusOnTab: true
@@ -118,6 +121,11 @@ Rectangle {
             navigateDown(); event.accepted = true
         } else if (event.key === Qt.Key_F && (event.modifiers & Qt.AltModifier) && !searchField.activeFocus) {
             toggleFavorite(null); event.accepted = true
+        } else if (event.key === Qt.Key_B && (event.modifiers & Qt.AltModifier)) {
+            launcher.bigPictureMode = !launcher.bigPictureMode
+            if (launcher.bigPictureMode) bpView.forceActiveFocus()
+            else launcher.forceActiveFocus()
+            event.accepted = true
         } else if (event.key === Qt.Key_Backspace && !searchField.activeFocus) {
             if (searchText.length > 0) {
                 searchText = searchText.slice(0, -1)
@@ -633,9 +641,35 @@ Rectangle {
                     onTextChanged: launcher.searchText = text
                 }
 
+                // Big Picture toggle button
+                Rectangle {
+                    id: bigPictureBtn
+                    anchors.right: parent.right; anchors.rightMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 30; height: 30; radius: 15
+                    color: bpMouse.containsMouse ? Qt.rgba(1,1,1,0.15) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Text {
+                        anchors.centerIn: parent
+                        text: launcher.bigPictureMode ? "" : ""
+                        font.family: "Font Awesome 7 Free Solid"; font.pixelSize: 13
+                        color: launcher.bigPictureMode ? (colors.color5||"#73ff00") : (colors.foreground||"#ffffff")
+                        opacity: 0.85
+                    }
+                    MouseArea {
+                        id: bpMouse
+                        anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            launcher.bigPictureMode = !launcher.bigPictureMode
+                            if (launcher.bigPictureMode) bpView.forceActiveFocus()
+                            else launcher.forceActiveFocus()
+                        }
+                    }
+                }
+
                 Rectangle {
                     id: clearBtn
-                    anchors.right: parent.right; anchors.rightMargin: 8
+                    anchors.right: bigPictureBtn.left; anchors.rightMargin: 4
                     anchors.verticalCenter: parent.verticalCenter
                     width: 26; height: 26; radius: 13
                     visible: launcher.searchText !== ""
@@ -731,7 +765,7 @@ Rectangle {
                         }
                     }
                     Text { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: filteredGames.length > 0 ? (selectedIndex + 1) + " / " + filteredGames.length : "0"; font.pixelSize: 12; color: colors.foreground||"#ffffff"; opacity: 0.6 }
-                    Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "← → Navigate  ⏎ Launch  Esc Close"; font.pixelSize: 11; color: colors.foreground||'#15ff00'; opacity: 0.5 }
+                    Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "← → Navigate | ⏎ Launch | 'ALT+F' Favorite | Esc Close"; font.pixelSize: 11; color: colors.foreground||'#15ff00'; opacity: 0.5 }
                 }
             }
 
@@ -813,6 +847,28 @@ Rectangle {
                 }
             }
         }
+    }
+
+    // ── BIG PICTURE OVERLAY ──────────────────────────────────────────────────
+    BigPictureView {
+        id: bpView
+        anchors.fill: parent
+        visible: launcher.bigPictureMode
+        filteredGames: launcher.filteredGames
+        colors: launcher.colors
+        selectedIndex: launcher.selectedIndex
+        selectedSource: launcher.selectedSource
+        favoriteCount: launcher.favoriteCount
+        availableSources: launcher.availableSources
+
+        onExitRequested: {
+            launcher.bigPictureMode = false
+            launcher.forceActiveFocus()
+        }
+        onLaunchRequested: (game) => launchGame(game, null)
+        onFavoriteToggleRequested: (game) => toggleFavorite(game)
+        onSourceSelected: (src) => { launcher.selectedSource = src }
+        onIndexChanged: (idx) => { launcher.selectedIndex = idx }
     }
 
     // Entrance animation
