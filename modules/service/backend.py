@@ -616,8 +616,10 @@ class GameLauncher:
 
     # ── Steam ──────────────────────────────────────────────────────────────
 
-    def load_steam_playtime(self) -> Dict[str, int]:
-        """Parse localconfig.vdf to get Playtime (minutes) per appid."""
+    def load_steam_localconfig(self) -> Dict[str, Dict[str, int]]:
+        """Parse localconfig.vdf → {appid: {playtime_minutes, last_played}}.
+        Covers all appids without digit-count restriction.
+        """
         result = {}
         userdata = Path.home() / ".local/share/Steam/userdata"
         if not userdata.exists():
@@ -634,7 +636,7 @@ class GameLauncher:
                 apps_content = content[apps_match.end():]
                 pos = 0
                 while pos < len(apps_content):
-                    m = re.search(r'"(\d{4,10})"\s*\{', apps_content[pos:])
+                    m = re.search(r'"(\d+)"\s*\{', apps_content[pos:])
                     if not m:
                         break
                     appid = m.group(1)
@@ -649,8 +651,12 @@ class GameLauncher:
                         p += 1
                     block = apps_content[block_start:p - 1]
                     pt = re.search(r'"Playtime"\s+"(\d+)"', block)
-                    if pt:
-                        result[appid] = int(pt.group(1))
+                    lp = re.search(r'"LastPlayed"\s+"(\d+)"', block)
+                    if pt or lp:
+                        result[appid] = {
+                            "playtime_minutes": int(pt.group(1)) if pt else 0,
+                            "last_played": int(lp.group(1)) if lp else 0,
+                        }
                     pos = pos + m.start() + 1
             except Exception:
                 pass
@@ -660,7 +666,7 @@ class GameLauncher:
         games = []
         if not self.config.get("steam", {}).get("enabled", True):
             return games
-        playtime_map = self.load_steam_playtime()
+        localconfig = self.load_steam_localconfig()
         library_paths = self.config.get("steam", {}).get("library_paths", [])
         for lib_path in library_paths:
             lib_path = self.expand_path(lib_path)
@@ -670,7 +676,11 @@ class GameLauncher:
                 game_data = self.parse_acf_file(acf_file)
                 if game_data:
                     appid = game_data.get("appid", "")
-                    game_data["playtime_minutes"] = playtime_map.get(appid, 0)
+                    lc = localconfig.get(appid, {})
+                    game_data["playtime_minutes"] = lc.get("playtime_minutes", 0)
+                    # prefer localconfig last_played when ACF shows 0
+                    if game_data.get("last_played", 0) == 0:
+                        game_data["last_played"] = lc.get("last_played", 0)
                     games.append(game_data)
         return games
 
@@ -778,6 +788,7 @@ class GameLauncher:
         games = []
         if not self.config.get("steam", {}).get("enabled", True):
             return games
+        localconfig = self.load_steam_localconfig()
         steam_path = self.expand_path("~/.local/share/Steam")
         userdata_path = steam_path / "userdata"
         if not userdata_path.exists():
@@ -786,7 +797,15 @@ class GameLauncher:
             if user_dir.is_dir():
                 shortcuts_file = user_dir / "config" / "shortcuts.vdf"
                 if shortcuts_file.exists():
-                    games.extend(self.parse_vdf_shortcuts(shortcuts_file))
+                    shortcut_games = self.parse_vdf_shortcuts(shortcuts_file)
+                    for g in shortcut_games:
+                        appid = g.get("appid", "")
+                        lc = localconfig.get(str(appid), {})
+                        if lc.get("playtime_minutes", 0) > 0:
+                            g["playtime_minutes"] = lc["playtime_minutes"]
+                        if g.get("last_played", 0) == 0:
+                            g["last_played"] = lc.get("last_played", 0)
+                    games.extend(shortcut_games)
         return games
 
     # ── Desktop files ──────────────────────────────────────────────────────
