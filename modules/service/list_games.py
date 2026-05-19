@@ -40,6 +40,7 @@ def main():
                 "gog": "GOG GAMES",
                 "amazon": "AMAZON GAMES",
                 "heroic": "HEROIC SIDELOAD",
+                "lutris": "LUTRIS GAMES",
                 "config": "CUSTOM LAUNCHERS",
                 "manual": "MANUAL ENTRIES"
             }
