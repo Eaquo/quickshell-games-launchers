@@ -1,7 +1,8 @@
 import QtQuick
 
-QtObject {
+Item {
     id: i18n
+    visible: false
 
     readonly property string lang: {
         const l = Qt.locale().name.split("_")[0]
