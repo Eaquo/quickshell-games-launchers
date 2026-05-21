@@ -7,6 +7,7 @@ import Quickshell.Io
 
 Rectangle {
     id: launcher
+    I18n { id: i18n }
 
     required property var config
     property var gamesData: []
@@ -25,6 +26,9 @@ Rectangle {
     property int spacing: config?.display?.spacing ?? 20
 
     property int sidebarWidth: 68
+    property bool bigPictureMode: false
+    property int screenW: 1920
+    property int screenH: 1080
     property int favoriteCount: {
         var n = 0
         for (var i = 0; i < gamesData.length; i++)
@@ -32,8 +36,8 @@ Rectangle {
         return n
     }
 
-    width: sidebarWidth + spacing + (itemWidth * gridColumns) + (spacing * (gridColumns + 1))
-    height: (itemHeight * gridRows) + (spacing * (gridRows + 1)) + 60 + 44 + spacing
+    width: bigPictureMode ? screenW : sidebarWidth + spacing + (itemWidth * gridColumns) + (spacing * (gridColumns + 1))
+    height: bigPictureMode ? screenH : (itemHeight * gridRows) + (spacing * (gridRows + 1)) + 60 + 44 + spacing
 
     focus: true
     activeFocusOnTab: true
@@ -118,6 +122,11 @@ Rectangle {
             navigateDown(); event.accepted = true
         } else if (event.key === Qt.Key_F && (event.modifiers & Qt.AltModifier) && !searchField.activeFocus) {
             toggleFavorite(null); event.accepted = true
+        } else if (event.key === Qt.Key_B && (event.modifiers & Qt.AltModifier)) {
+            launcher.bigPictureMode = !launcher.bigPictureMode
+            if (launcher.bigPictureMode) bpView.forceActiveFocus()
+            else launcher.forceActiveFocus()
+            event.accepted = true
         } else if (event.key === Qt.Key_Backspace && !searchField.activeFocus) {
             if (searchText.length > 0) {
                 searchText = searchText.slice(0, -1)
@@ -263,9 +272,10 @@ Rectangle {
         launchProcess.command = ["sh", "-c", "setsid " + game.exec + " &"]
         launchProcess.running = true
         launcher.enabled = false
-        if (config?.behavior?.close_on_launch ?? true) {
+        if (launcher.bigPictureMode) {
+            bpView.showLaunch(game.logo || "", game.name || "")
+        } else if (config?.behavior?.close_on_launch ?? true) {
             launchOverlay.colors = colors
-            // Récupère la position de la carte dans le repère du launcher
             var pos = cardItem ? cardItem.mapToItem(launcher, 0, 0) : null
             launchOverlay.show(
                 game.image || "",
@@ -384,7 +394,7 @@ Rectangle {
                         }
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            text: "All"
+                            text: i18n.t("all")
                             font.pixelSize: 9
                             font.bold: selectedSource === "all"
                             font.family: "Open Sans Regular"
@@ -451,7 +461,7 @@ Rectangle {
                         }
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            text: "Favs"
+                            text: i18n.t("favs")
                             font.pixelSize: 9
                             font.bold: launcher.selectedSource === "favorites"
                             font.family: "Open Sans Regular"
@@ -618,7 +628,7 @@ Rectangle {
                     anchors.right: clearBtn.left; anchors.rightMargin: 4
                     anchors.verticalCenter: parent.verticalCenter
                     height: parent.height - 4
-                    placeholderText: "Search for a game…"
+                    placeholderText: i18n.t("search")
                     placeholderTextColor: Qt.rgba(1,1,1,0.3)
                     color: colors.foreground || "#ffffff"
                     font.pixelSize: 14
@@ -633,9 +643,38 @@ Rectangle {
                     onTextChanged: launcher.searchText = text
                 }
 
+                // Big Picture toggle button
+                Rectangle {
+                    id: bigPictureBtn
+                    anchors.right: parent.right; anchors.rightMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 32; height: 32; radius: 16
+                    color: launcher.bigPictureMode
+                        ? (colors.color5 || "#73ff00")
+                        : (bpMouse.containsMouse ? Qt.rgba(1,1,1,0.18) : Qt.rgba(1,1,1,0.08))
+                    border.color: launcher.bigPictureMode ? "transparent" : Qt.rgba(1,1,1,0.2)
+                    border.width: 1
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Text {
+                        anchors.centerIn: parent
+                        text: "\uf26c"
+                        font.family: "Font Awesome 7 Free Solid"; font.pixelSize: 14
+                        color: launcher.bigPictureMode ? "#1a1a1a" : (colors.foreground || "#ffffff")
+                    }
+                    MouseArea {
+                        id: bpMouse
+                        anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            launcher.bigPictureMode = !launcher.bigPictureMode
+                            if (launcher.bigPictureMode) bpView.forceActiveFocus()
+                            else launcher.forceActiveFocus()
+                        }
+                    }
+                }
+
                 Rectangle {
                     id: clearBtn
-                    anchors.right: parent.right; anchors.rightMargin: 8
+                    anchors.right: bigPictureBtn.left; anchors.rightMargin: 4
                     anchors.verticalCenter: parent.verticalCenter
                     width: 26; height: 26; radius: 13
                     visible: launcher.searchText !== ""
@@ -707,8 +746,8 @@ Rectangle {
                         Column {
                             anchors.centerIn: parent; spacing: 16
                             Text { anchors.horizontalCenter: parent.horizontalCenter; text: "🎮"; font.pixelSize: 64; opacity: 0.3 }
-                            Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Aucun jeu trouvé"; font.pixelSize: 18; color: colors.foreground||"#ffffff"; opacity: 0.7 }
-                            Text { anchors.horizontalCenter: parent.horizontalCenter; text: launcher.searchText !== "" ? "Essaie un autre terme" : "Aucun jeu dans cette source"; font.pixelSize: 14; color: colors.foreground||"#ffffff"; opacity: 0.5 }
+                            Text { anchors.horizontalCenter: parent.horizontalCenter; text: i18n.t("no_games"); font.pixelSize: 18; color: colors.foreground||"#ffffff"; opacity: 0.7 }
+                            Text { anchors.horizontalCenter: parent.horizontalCenter; text: launcher.searchText !== "" ? i18n.t("try_other") : i18n.t("no_games_source"); font.pixelSize: 14; color: colors.foreground||"#ffffff"; opacity: 0.5 }
                         }
                     }
                 }
@@ -731,7 +770,7 @@ Rectangle {
                         }
                     }
                     Text { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: filteredGames.length > 0 ? (selectedIndex + 1) + " / " + filteredGames.length : "0"; font.pixelSize: 12; color: colors.foreground||"#ffffff"; opacity: 0.6 }
-                    Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "← → Navigate | ⏎ Launch | 'ALT+F' Favorite | Esc Close"; font.pixelSize: 11; color: colors.foreground||'#15ff00'; opacity: 0.5 }
+                    Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: i18n.t("help_horiz"); font.pixelSize: 11; color: colors.foreground||'#15ff00'; opacity: 0.5 }
                 }
             }
 
@@ -813,6 +852,28 @@ Rectangle {
                 }
             }
         }
+    }
+
+    // ── BIG PICTURE OVERLAY ──────────────────────────────────────────────────
+    BigPictureView {
+        id: bpView
+        anchors.fill: parent
+        visible: launcher.bigPictureMode
+        filteredGames: launcher.filteredGames
+        colors: launcher.colors
+        selectedIndex: launcher.selectedIndex
+        selectedSource: launcher.selectedSource
+        favoriteCount: launcher.favoriteCount
+        availableSources: launcher.availableSources
+
+        onExitRequested: {
+            launcher.bigPictureMode = false
+            launcher.forceActiveFocus()
+        }
+        onLaunchRequested: (game) => launchGame(game, null)
+        onFavoriteToggleRequested: (game) => toggleFavorite(game)
+        onSourceSelected: (src) => { launcher.selectedSource = src }
+        onIndexChanged: (idx) => { launcher.selectedIndex = idx }
     }
 
     // Entrance animation
