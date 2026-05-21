@@ -46,9 +46,7 @@ Game launcher with multi-platform support and a sleek animated interface.
 
 ## 📺 Big Picture Mode
 
-<!-- Add your screenshot here:
-![Big Picture Mode](asset/bigpicture.png)
--->
+![Big Picture Mode](asset/Bigpicture.png)
 
 Full-screen Steam Deck-style interface with:
 - **Hero image** — wide banner (3840×1240 from Steam CDN, or SteamGridDB hero)
