@@ -60,7 +60,7 @@ Full-screen Steam Deck-style interface with:
 |--------|--------|
 | ![](https://img.shields.io/badge/D--pad-grey?style=flat-square) | Navigate the grid |
 | ![](https://img.shields.io/badge/A-1d7b36?style=flat-square&logo=xbox&logoColor=white) | Launch selected game |
-| ![](https://img.shields.io/badge/X-1a4fa8?style=flat-square&logo=xbox&logoColor=white) | Toggle Big Picture mode |
+| ![](https://img.shields.io/badge/Y-1a4fa8?style=flat-square&logo=xbox&logoColor=white) | Toggle Big Picture mode |
 | ![](https://img.shields.io/badge/SELECT-2c3e50?style=flat-square&logo=xbox&logoColor=white) | Toggle favorite |
 | ![](https://img.shields.io/badge/B-c0392b?style=flat-square&logo=xbox&logoColor=white) | Close |
 
