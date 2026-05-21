@@ -18,11 +18,13 @@ Game launcher with multi-platform support and a sleek animated interface.
 - 🎮 Automatic detection of non-Steam games added to Steam (via shortcuts.vdf)
 - 🖼️ Automatic cover art from Steam CDN / SteamGridDB (animated WebP/WebM heroes)
 - 🚀 Animated launch overlay — cover expands fullscreen with game logo and "Start Game◦◦◦" indicator
-- 🕹️ Gamepad support
+- 📺 **Big Picture mode** — fullscreen Steam Deck-style view with hero image, stats panel, and game strip
+- 🕹️ Gamepad support (navigate, launch, favorites, Big Picture toggle via X button)
 - 🏷️ Platform badges and categories
 - ⭐ Favorites system
 - 🆕 NEW/RECENT indicators
 - 🎨 Automatic pywal/wallust theming
+- 🌍 i18n — auto-detected language (fr / en / es / ru / ja)
 - ⌨️ Keyboard, scroll wheel, and gamepad navigation
 - 🔍 Live search
 - 📚 Library view with installation paths
@@ -37,7 +39,22 @@ Game launcher with multi-platform support and a sleek animated interface.
 | `Double-click` | Launch a game |
 | `Esc` | Close |
 | `Scroll wheel` | Navigate |
-| `ALT + F` | Add favorite |
+| `ALT + F` | Toggle favorite |
+| `ALT + B` | Toggle Big Picture mode |
+
+---
+
+## 📺 Big Picture Mode
+
+<!-- Add your screenshot here:
+![Big Picture Mode](asset/bigpicture.png)
+-->
+
+Full-screen Steam Deck-style interface with:
+- **Hero image** — wide banner (3840×1240 from Steam CDN, or SteamGridDB hero)
+- **Stats panel** — playtime, last session, install size, last update (hidden if unavailable)
+- **Game strip** — horizontal scrollable list at the bottom
+- **Launch overlay** — logo + "Start Game◦◦◦" animation, launcher closes after 4 s
 
 ## 🎮 Gamepad
 
@@ -45,7 +62,8 @@ Game launcher with multi-platform support and a sleek animated interface.
 |--------|--------|
 | ![](https://img.shields.io/badge/D--pad-grey?style=flat-square) | Navigate the grid |
 | ![](https://img.shields.io/badge/A-1d7b36?style=flat-square&logo=xbox&logoColor=white) | Launch selected game |
-| ![](https://img.shields.io/badge/SELECT-2c3e50?style=flat-square&logo=xbox&logoColor=white) | favorite |
+| ![](https://img.shields.io/badge/X-1a4fa8?style=flat-square&logo=xbox&logoColor=white) | Toggle Big Picture mode |
+| ![](https://img.shields.io/badge/SELECT-2c3e50?style=flat-square&logo=xbox&logoColor=white) | Toggle favorite |
 | ![](https://img.shields.io/badge/B-c0392b?style=flat-square&logo=xbox&logoColor=white) | Close |
 
 
@@ -248,7 +266,9 @@ game-launcher/
 ├── modules/
 │   ├── GameLauncher.qml           # Main component + grid
 │   ├── GameCard.qml               # Individual game card
-│   ├── LaunchOverlay.qml          # Animated launch overlay
+│   ├── BigPictureView.qml         # Big Picture fullscreen mode
+│   ├── LaunchOverlay.qml          # Animated launch overlay (normal mode)
+│   ├── I18n.qml                   # i18n strings (fr/en/es/ru/ja)
 │   └── service/
 │       ├── backend.py             # Steam/Heroic scan, SteamGridDB, TOML
 │       ├── gamepad.py             # Gamepad support
@@ -342,5 +362,5 @@ Inspired by [caelestia-dots/shell](https://github.com/caelestia-dots/shell)
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/waxdred)
 
 **Author:** Florian
-**Version:** 1.1.0
-**Date:** 2026-03-28
+**Version:** 1.2.0
+**Date:** 2026-05-21
