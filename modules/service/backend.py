@@ -728,6 +728,7 @@ class GameLauncher:
                 "name": name,
                 "exec": f"steam steam://rungameid/{app_id}",
                 "image": cover_url,
+                "hero_image": f"https://cdn.cloudflare.steamstatic.com/steam/apps/{app_id}/library_hero.jpg",
                 "category": "steam",
                 "favorite": False,
                 "appid": app_id,

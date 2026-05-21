@@ -98,7 +98,7 @@ Item {
     Image {
         id: heroBg
         anchors.fill: parent
-        source: currentGame?.image || ""
+        source: currentGame?.hero_image || currentGame?.image || ""
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: false
@@ -108,7 +108,7 @@ Item {
         layer.effect: MultiEffect { blurEnabled: true; blur: 1.0; blurMax: 48 }
     }
 
-    property bool heroIsWebM: (currentGame?.image || "").toLowerCase().endsWith(".webm")
+    property bool heroIsWebM: (currentGame?.hero_image || currentGame?.image || "").toLowerCase().endsWith(".webm")
 
     // ── TOP BAR ─────────────────────────────────────────────────────────────
     Rectangle {
@@ -226,7 +226,7 @@ Item {
         AnimatedImage {
             id: heroImg
             anchors.fill: parent
-            source: bp.heroIsWebM ? "" : (currentGame?.image || "")
+            source: bp.heroIsWebM ? "" : (currentGame?.hero_image || currentGame?.image || "")
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: false
@@ -246,7 +246,7 @@ Item {
         }
         MediaPlayer {
             id: heroPlayer
-            source: bp.heroIsWebM ? (currentGame?.image || "") : ""
+            source: bp.heroIsWebM ? (currentGame?.hero_image || currentGame?.image || "") : ""
             videoOutput: heroVideo
             loops: MediaPlayer.Infinite
             onSourceChanged: if (source !== "") play()
