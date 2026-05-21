@@ -327,6 +327,11 @@ Rectangle {
                 case "toggle":
                     launcher.visible = !launcher.visible
                     break
+                case "bigpicture":
+                    launcher.bigPictureMode = !launcher.bigPictureMode
+                    if (launcher.bigPictureMode) bpView.forceActiveFocus()
+                    else launcher.forceActiveFocus()
+                    break
                 case "up":
                     navigateSource("up")
                     break
@@ -874,6 +879,7 @@ Rectangle {
         onFavoriteToggleRequested: (game) => toggleFavorite(game)
         onSourceSelected: (src) => { launcher.selectedSource = src }
         onIndexChanged: (idx) => { launcher.selectedIndex = idx }
+        onLaunchDone: Qt.quit()
     }
 
     // Entrance animation
