@@ -19,6 +19,7 @@ Item {
     signal favoriteToggleRequested(var game)
     signal sourceSelected(string src)
     signal indexChanged(int idx)
+    signal launchDone()
 
     function showLaunch(logo, name) {
         bpLaunchOverlay.showLaunch(logo, name)
@@ -98,7 +99,7 @@ Item {
     Image {
         id: heroBg
         anchors.fill: parent
-        source: currentGame?.image || ""
+        source: currentGame?.hero_image || currentGame?.image || ""
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: false
@@ -108,7 +109,7 @@ Item {
         layer.effect: MultiEffect { blurEnabled: true; blur: 1.0; blurMax: 48 }
     }
 
-    property bool heroIsWebM: (currentGame?.image || "").toLowerCase().endsWith(".webm")
+    property bool heroIsWebM: (currentGame?.hero_image || currentGame?.image || "").toLowerCase().endsWith(".webm")
 
     // ── TOP BAR ─────────────────────────────────────────────────────────────
     Rectangle {
@@ -226,7 +227,7 @@ Item {
         AnimatedImage {
             id: heroImg
             anchors.fill: parent
-            source: bp.heroIsWebM ? "" : (currentGame?.image || "")
+            source: bp.heroIsWebM ? "" : (currentGame?.hero_image || currentGame?.image || "")
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: false
@@ -246,7 +247,7 @@ Item {
         }
         MediaPlayer {
             id: heroPlayer
-            source: bp.heroIsWebM ? (currentGame?.image || "") : ""
+            source: bp.heroIsWebM ? (currentGame?.hero_image || currentGame?.image || "") : ""
             videoOutput: heroVideo
             loops: MediaPlayer.Infinite
             onSourceChanged: if (source !== "") play()
@@ -780,7 +781,7 @@ Item {
             }
         }
         Timer {
-            id: bpCloseTimer; interval: 3200; repeat: false
+            id: bpCloseTimer; interval: 3700; repeat: false
             onTriggered: {
                 bpDotsTimer.stop()
                 bpFadeOut.start()
@@ -793,6 +794,7 @@ Item {
             onStopped: {
                 bpLaunchOverlay.visible = false
                 bpLaunchOverlay.opacity = 1
+                bp.launchDone()
             }
         }
 
