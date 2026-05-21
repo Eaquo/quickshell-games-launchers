@@ -109,6 +109,8 @@ ShellRoot {
                 GameLauncher {
                     id: launcher
                     config: root.config
+                    screenW: launcherWindow.screen.width
+                    screenH: launcherWindow.screen.height
                     x: implicitWidth - root.config.display.item_width                    
 
                     // Position dynamique selon config.display.position
@@ -190,6 +192,31 @@ ShellRoot {
 
                 onCloseRequested: {
                     root.launcherVisible = false
+                }
+
+                states: State {
+                    name: "bigpicture"
+                    when: launcher.bigPictureMode
+                    AnchorChanges {
+                        target: launcher
+                        anchors.top: rootItem.top
+                        anchors.left: rootItem.left
+                        anchors.right: rootItem.right
+                        anchors.bottom: rootItem.bottom
+                        anchors.horizontalCenter: undefined
+                        anchors.verticalCenter: undefined
+                    }
+                    PropertyChanges {
+                        target: launcher
+                        anchors.topMargin: 0
+                        anchors.bottomMargin: 0
+                        anchors.leftMargin: 0
+                        anchors.rightMargin: 0
+                    }
+                }
+
+                transitions: Transition {
+                    AnchorAnimation { duration: 280; easing.type: Easing.OutCubic }
                 }
                 }  // End GameLauncher
             }  // End rootItem
