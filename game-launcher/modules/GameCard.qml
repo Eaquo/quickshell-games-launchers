@@ -4,6 +4,7 @@ import QtQuick.Effects
 import QtMultimedia
 
 Rectangle {
+    I18n { id: i18n }
     id: card
 
     property string gameName: "Game"
@@ -233,7 +234,7 @@ Rectangle {
                 Text {
                     id: badgeText
                     anchors.centerIn: parent
-                    text: lastPlayed === 0 ? "NEW" : "RECENT"
+                    text: lastPlayed === 0 ? i18n.t("new_badge") : i18n.t("recent_badge")
                     font.pixelSize: 9
                     font.capitalization: Font.Capitalize
                     font.family: "Open Sans Regular"
