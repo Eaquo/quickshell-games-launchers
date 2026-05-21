@@ -722,12 +722,15 @@ class GameLauncher:
             last_updated = int(updated_match.group(1)) if updated_match else 0
 
             sgdb_config = self.config.get("steamgriddb", {})
-            cover_url = "" if sgdb_config.get("parallel_requests", True) else self.get_steam_cover_url(app_id)
+            sgdb_active = sgdb_config.get("enabled", False) and bool(sgdb_config.get("api_key", ""))
+            cdn_cover = f"https://cdn.cloudflare.steamstatic.com/steam/apps/{app_id}/header.jpg"
+            cover_url = "" if (sgdb_active and sgdb_config.get("parallel_requests", True)) else cdn_cover
 
             return {
                 "name": name,
                 "exec": f"steam steam://rungameid/{app_id}",
                 "image": cover_url,
+                "hero_image": f"https://cdn.cloudflare.steamstatic.com/steam/apps/{app_id}/library_hero.jpg",
                 "category": "steam",
                 "favorite": False,
                 "appid": app_id,
