@@ -74,7 +74,9 @@ class GameLauncher:
 
         self.config_path = Path(config_path)
         self.favorites_file = self.config_path.parent / "favorites.json"
+        self.state_file = self.config_path.parent / "state.json"
         self.config = self.load_config()
+        self.migrate_config()
 
         cache_dir = self.config_path.parent / "cache"
         cache_file = cache_dir / "image_cache.json"
@@ -179,6 +181,22 @@ class GameLauncher:
         except Exception as e:
             print(f"Error saving favorites: {e}", file=sys.stderr)
 
+    def load_state(self) -> Dict[str, Any]:
+        try:
+            with open(self.state_file, 'r') as f:
+                return json.load(f)
+        except Exception:
+            return {}
+
+    def save_state(self, key: str, value: Any):
+        state = self.load_state()
+        state[key] = value
+        try:
+            with open(self.state_file, 'w') as f:
+                json.dump(state, f, indent=2)
+        except Exception as e:
+            print(f"Error saving state: {e}", file=sys.stderr)
+
     def toggle_favorite(self, name: str, source: str):
         key = f"{name}:{source}"
         favorites = self.load_favorites()
@@ -200,6 +218,54 @@ class GameLauncher:
         except Exception as e:
             print(f"Error loading config: {e}", file=sys.stderr)
             return self.get_default_config()
+
+    def migrate_config(self):
+        """Insert missing config keys into the user's existing config.toml."""
+        NEW_KEYS = [
+            ("behavior", "default_source_index", "0",
+             "# Onglet actif au démarrage : 0=Tous, 1=premier onglet (Steam), 2=deuxième, etc."),
+            ("behavior", "remember_source", "false",
+             "# true = mémorise le dernier onglet actif entre les lancements (écrase default_source_index)"),
+        ]
+
+        missing = [
+            (sec, key, val, cmt)
+            for sec, key, val, cmt in NEW_KEYS
+            if key not in self.config.get(sec, {})
+        ]
+        if not missing:
+            return
+
+        try:
+            with open(self.config_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            for section, key, default, comment in missing:
+                header = f"[{section}]"
+                if header not in content:
+                    content += f"\n{header}\n{comment}\n{key} = {default}\n"
+                    continue
+
+                pos = content.find(header)
+                lines = content[pos:].split('\n')
+
+                # Find end of this section (next section header)
+                end_idx = len(lines)
+                for i in range(1, len(lines)):
+                    s = lines[i].strip()
+                    if s.startswith('[') and not s.startswith('#') and s:
+                        end_idx = i
+                        break
+
+                lines.insert(end_idx, f"\n{comment}\n{key} = {default}\n")
+                content = content[:pos] + '\n'.join(lines)
+
+            with open(self.config_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+
+            self.config = self.load_config()
+        except Exception as e:
+            print(f"Config migration error: {e}", file=sys.stderr)
 
     def get_default_config(self) -> Dict[str, Any]:
         return {
@@ -722,7 +788,9 @@ class GameLauncher:
             last_updated = int(updated_match.group(1)) if updated_match else 0
 
             sgdb_config = self.config.get("steamgriddb", {})
-            cover_url = "" if sgdb_config.get("parallel_requests", True) else self.get_steam_cover_url(app_id)
+            sgdb_active = sgdb_config.get("enabled", False) and bool(sgdb_config.get("api_key", ""))
+            cdn_cover = f"https://cdn.cloudflare.steamstatic.com/steam/apps/{app_id}/header.jpg"
+            cover_url = "" if (sgdb_active and sgdb_config.get("parallel_requests", True)) else cdn_cover
 
             return {
                 "name": name,
@@ -1247,10 +1315,13 @@ class GameLauncher:
         wallust_colors = {}
         if self.config.get("appearance", {}).get("use_wallust", True):
             wallust_colors = self.load_wallust_colors()
+        state = self.load_state()
         return {
-            "games":  games,
-            "config": self.config,
-            "colors": wallust_colors
+            "games":       games,
+            "config":      self.config,
+            "colors":      wallust_colors,
+            "last_source": state.get("last_source", ""),
+            "last_game":   state.get("last_game", "")
         }
 
     def output_json(self):
@@ -1264,6 +1335,9 @@ def main():
         source = sys.argv[3] if len(sys.argv) > 3 else ""
         launcher = GameLauncher()
         launcher.toggle_favorite(name, source)
+    elif len(sys.argv) >= 4 and sys.argv[1] == "save-state":
+        launcher = GameLauncher()
+        launcher.save_state(sys.argv[2], sys.argv[3])
     else:
         launcher = GameLauncher()
         launcher.output_json()

@@ -29,5 +29,8 @@ Thumbs.db
 games.toml.backup
 *.log
 favorites.json
+state.json
 cache/
 .claude/
+*.tar
+*.tar.gz

@@ -19,6 +19,7 @@ Item {
     signal favoriteToggleRequested(var game)
     signal sourceSelected(string src)
     signal indexChanged(int idx)
+    signal launchDone()
 
     function showLaunch(logo, name) {
         bpLaunchOverlay.showLaunch(logo, name)
@@ -780,7 +781,7 @@ Item {
             }
         }
         Timer {
-            id: bpCloseTimer; interval: 3200; repeat: false
+            id: bpCloseTimer; interval: 3700; repeat: false
             onTriggered: {
                 bpDotsTimer.stop()
                 bpFadeOut.start()
@@ -793,6 +794,7 @@ Item {
             onStopped: {
                 bpLaunchOverlay.visible = false
                 bpLaunchOverlay.opacity = 1
+                bp.launchDone()
             }
         }
 

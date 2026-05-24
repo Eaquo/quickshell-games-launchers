@@ -144,7 +144,27 @@ Rectangle {
     Keys.onEscapePressed: Qt.quit()
 
     onSearchTextChanged:   filterGames()
-    onSelectedSourceChanged: filterGames()
+    readonly property string _backendPath: Qt.resolvedUrl("service/backend.py").toString().replace("file://", "")
+
+    onSelectedSourceChanged: {
+        filterGames()
+        if (config?.behavior?.remember_source ?? false) {
+            saveStateProcess.command = ["python3", _backendPath, "save-state", "last_source", selectedSource]
+            saveStateProcess.running = true
+        }
+    }
+
+    onSelectedIndexChanged: {
+        if (config?.behavior?.remember_source ?? false) {
+            const game = filteredGames[selectedIndex]
+            if (game) {
+                const k = game.appid ? String(game.appid) + ":" + (game.source || "")
+                                     : game.name + ":" + (game.source || "")
+                saveGameProcess.command = ["python3", _backendPath, "save-state", "last_game", k]
+                saveGameProcess.running = true
+            }
+        }
+    }
 
     signal closeRequested()
 
@@ -160,6 +180,35 @@ Rectangle {
                 gamesData = result.games || []
                 colors = result.colors || {}
                 filterGames()
+
+                const behavior = result.config?.behavior || {}
+                const rememberSource = behavior.remember_source ?? false
+                const defaultIdx = Math.max(0, behavior.default_source_index ?? 0)
+
+                if (rememberSource && result.last_source) {
+                    selectedSource = result.last_source
+                } else if (defaultIdx > 0) {
+                    const seen = {}, sources = []
+                    for (const g of result.games || []) {
+                        const s = g.source || ""
+                        if (s && !seen[s]) { seen[s] = true; sources.push(s) }
+                    }
+                    selectedSource = sources[defaultIdx - 1] || "all"
+                }
+
+                if (rememberSource && result.last_game) {
+                    const games = result.games || []
+                    const src = selectedSource
+                    let filtered = games.slice()
+                    if (src === "favorites") filtered = filtered.filter(g => g.favorite)
+                    else if (src !== "all") filtered = filtered.filter(g => (g.source || "") === src)
+                    const idx = filtered.findIndex(g => {
+                        const k = g.appid ? String(g.appid) + ":" + (g.source || "")
+                                          : g.name + ":" + (g.source || "")
+                        return k === result.last_game
+                    })
+                    if (idx >= 0) selectedIndex = idx
+                }
             } catch (e) {
                 console.error("Failed to parse games data:", e)
             }
@@ -224,6 +273,8 @@ Rectangle {
             if (filteredGames.length === 0) return
             game = filteredGames[selectedIndex]
         }
+        var gameName   = game.name
+        var gameSource = game.source || ""
         var newFav = !game.favorite
         // Optimistic local update
         var updated = []
@@ -246,6 +297,11 @@ Rectangle {
             if (!stillHasFav) selectedSource = "all"
         }
         filterGames()
+        // Follow the game to its new position after reorder (favorites first, etc.)
+        var newIdx = filteredGames.findIndex(function(g) {
+            return g.name === gameName && (g.source || "") === gameSource
+        })
+        if (newIdx >= 0) selectedIndex = newIdx
         // Persist to file
         toggleFavoriteProcess.command = [
             "python3",
@@ -266,6 +322,16 @@ Rectangle {
         id: toggleFavoriteProcess
         running: false
         stdout: SplitParser { onRead: data => {} }
+    }
+
+    Process {
+        id: saveStateProcess
+        running: false
+    }
+
+    Process {
+        id: saveGameProcess
+        running: false
     }
 
     function launchGame(game, cardItem) {
@@ -326,6 +392,11 @@ Rectangle {
                     break
                 case "toggle":
                     launcher.visible = !launcher.visible
+                    break
+                case "bigpicture":
+                    launcher.bigPictureMode = !launcher.bigPictureMode
+                    if (launcher.bigPictureMode) bpView.forceActiveFocus()
+                    else launcher.forceActiveFocus()
                     break
                 case "up":
                     navigateSource("up")
@@ -874,6 +945,7 @@ Rectangle {
         onFavoriteToggleRequested: (game) => toggleFavorite(game)
         onSourceSelected: (src) => { launcher.selectedSource = src }
         onIndexChanged: (idx) => { launcher.selectedIndex = idx }
+        onLaunchDone: Qt.quit()
     }
 
     // Entrance animation

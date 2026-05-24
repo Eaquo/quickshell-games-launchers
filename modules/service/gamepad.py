@@ -16,6 +16,7 @@ except ImportError:
 BUTTON_MAP = {
     ecodes.BTN_SOUTH:  "select",
     ecodes.BTN_EAST:   "close",
+    ecodes.BTN_WEST:   "bigpicture",
     ecodes.BTN_START:  "toggle",
     ecodes.BTN_MODE:   "toggle",
     ecodes.BTN_SELECT: "favorite",

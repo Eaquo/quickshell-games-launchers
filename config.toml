@@ -1,8 +1,8 @@
 # Game Launcher Configuration
 
 [display]
-position = "bottom"  # center, top, bottom
-orientation = "horizontal"  # horizontal
+position = "bottom"  # center, top, bottom, left, right
+orientation = "horizontal"  # horizontal, vertical
 grid_size = [3, 1]   # colonnes x lignes (columns x rows)
 item_width = 400  # Card width (220 for vertical left/right, 400 for horizontal)
 item_height = 200  # Card height
@@ -18,9 +18,16 @@ blur_background = true
 background_opacity = 0.85
 
 [behavior]
-sort_by = "recent"
+sort_by = "recent"             # recent | alphabetical | playtime
 show_favorites_first = true
 close_on_launch = true
+
+# Onglet actif au démarrage :
+#   0 = Tous  |  1 = premier onglet réel (Steam)  |  2 = deuxième, etc.
+default_source_index = 0
+
+# true = mémorise le dernier onglet actif entre les lancements (écrase default_source_index)
+remember_source = true
 
 # ╔══════════════════════════════════════════════════════════════════════════╗
 # ║                          STEAM GAME CONF                                 ║
@@ -43,7 +50,7 @@ library_paths = [
 enabled = true
 
 # Votre clé API SteamGridDB 
-api_key = "b7e804fd09a660b775c4081148339ca9"
+api_key = ""   # Obtenez une clé gratuite sur https://www.steamgriddb.com/api/v2
 
 # Type d'image à télécharger
 image_type = "hero"
