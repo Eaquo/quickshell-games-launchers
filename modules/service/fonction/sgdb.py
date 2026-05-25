@@ -3,6 +3,8 @@ import json
 import re
 import urllib.error
 import urllib.request
+import threading
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional
 
@@ -13,6 +15,21 @@ class SGDBClient:
     def __init__(self, config: Dict[str, Any], image_cache: ImageCache):
         self.config = config
         self.image_cache = image_cache
+
+    def cached_image_path(self, url: str) -> str:
+        import hashlib
+        from urllib.parse import urlparse
+        if not url or url.startswith("file://") or url.startswith("/") or url.startswith("~"):
+            return url
+        config_path = self.config.get("_config_path")
+        if config_path:
+            cache_dir = Path(config_path).parent / "cache" / "images"
+        else:
+            cache_dir = Path.home() / ".config" / "quickshell" / "game-launcher" / "cache" / "images"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        ext = Path(urlparse(url).path).suffix or ".jpg"
+        url_hash = hashlib.md5(url.encode()).hexdigest()
+        return str(cache_dir / f"{url_hash}{ext}")
 
     # ── Connectivité ───────────────────────────────────────────────────────
 
@@ -101,7 +118,7 @@ class SGDBClient:
 
     # ── Cover ──────────────────────────────────────────────────────────────
 
-    def get_steamgriddb_cover_url(self, app_id: str, platform: str = "steam", game_name: str = "") -> Optional[str]:
+    def get_steamgriddb_cover_url(self, app_id: str, platform: str = "steam", game_name: str = "", prefer_animated: Optional[bool] = None) -> Optional[str]:
         sgdb_config = self.config.get("steamgriddb", {})
         if not sgdb_config.get("enabled", False):
             return None
@@ -197,7 +214,8 @@ class SGDBClient:
                 pool = sorted(imgs, key=score_image, reverse=True)
             return pool[0].get("url", pool[0].get("thumb"))
 
-        prefer_animated = sgdb_config.get("prefer_animated", False)
+        if prefer_animated is None:
+            prefer_animated = sgdb_config.get("prefer_animated", False)
 
         if prefer_animated:
             raw = do_request(make_url("animated", with_dims=True))
@@ -321,6 +339,7 @@ class SGDBClient:
             return games
 
         max_workers = sgdb_config.get("max_workers", 10)
+        prefer_animated = sgdb_config.get("prefer_animated", False)
         games_to_fetch = []
         for i, game in enumerate(games):
             source   = game.get("source", "")
@@ -339,26 +358,42 @@ class SGDBClient:
         if not self._check_connectivity():
             return games
 
-        def fetch_cover_and_logo(item):
+        total = len(games_to_fetch)
+        done = 0
+        progress_lock = threading.Lock()
+
+        def fetch_images(item):
+            nonlocal done
             idx, game = item
             platform  = self.get_steamgriddb_platform(game.get("source", ""), game.get("category", ""))
             appid     = game.get("appid")
             name      = game.get("name", "")
 
-            cover_url = self.get_steamgriddb_cover_url(appid, platform, game_name=name)
-            if not cover_url and game.get("source") == "steam" and game.get("category") != "steam-shortcut":
-                cover_url = self.get_steam_cdn_fallback_url(appid)
+            static_url = self.get_steamgriddb_cover_url(appid, platform, game_name=name, prefer_animated=False)
+            if not static_url and game.get("source") == "steam" and game.get("category") != "steam-shortcut":
+                static_url = self.get_steam_cdn_fallback_url(appid)
+
+            animated_url = None
+            if prefer_animated:
+                animated_url = self.get_steamgriddb_cover_url(appid, platform, game_name=name, prefer_animated=True)
 
             logo_url = self.get_steamgriddb_logo_url(appid, platform, game_name=name)
-            return idx, cover_url, logo_url
+
+            with progress_lock:
+                done += 1
+                print(f"[progress_image] {done}/{total}|{name}", flush=True)
+
+            return idx, static_url, animated_url, logo_url
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(fetch_cover_and_logo, item): item for item in games_to_fetch}
+            futures = {executor.submit(fetch_images, item): item for item in games_to_fetch}
             for future in as_completed(futures):
                 try:
-                    idx, cover_url, logo_url = future.result()
-                    if cover_url:
-                        games[idx]["image"] = cover_url
+                    idx, static_url, animated_url, logo_url = future.result()
+                    if static_url:
+                        games[idx]["image"] = static_url
+                    if animated_url:
+                        games[idx]["image_animated"] = animated_url
                     if logo_url:
                         games[idx]["logo"] = logo_url
                 except Exception:

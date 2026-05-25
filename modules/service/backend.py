@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import Any, Dict, List
 import re
 import os
+import threading
+import hashlib
+from urllib.parse import urlparse
 
 # Permet les imports absolus depuis modules/service/ quand lancé comme script
 sys.path.insert(0, str(Path(__file__).parent))
@@ -262,6 +265,44 @@ class GameLauncher:
             result.append(merged)
         return result
 
+    def cached_image_path(self, url: str) -> str:
+        if not url or url.startswith("file://") or url.startswith("/") or url.startswith("~"):
+            return url
+        cache_dir = self.config_path.parent / "cache" / "images"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        ext = Path(urlparse(url).path).suffix or ".jpg"
+        url_hash = hashlib.md5(url.encode()).hexdigest()
+        return str(cache_dir / f"{url_hash}{ext}")
+
+    def validate_download(self, path: str) -> bool:
+        try:
+            p = Path(path)
+            if not p.exists() or p.stat().st_size < 12:
+                return False
+            if not path.lower().endswith('.webp'):
+                return True
+            with open(path, 'rb') as f:
+                magic = f.read(12)
+            return magic[:4] == b'RIFF' and magic[8:12] == b'WEBP'
+        except Exception:
+            return False
+
+    def download_image_to(self, url: str, cached_path: str, max_time: int = 120):
+        import subprocess
+        try:
+            subprocess.run(
+                ["curl", "-s", "--connect-timeout", "5", "--max-time", str(max_time),
+                 "-H", "User-Agent: quickshell-game-launcher/1.0",
+                 "-o", cached_path, url],
+                timeout=max_time + 10, capture_output=True)
+        except Exception:
+            pass
+        if not self.validate_download(cached_path):
+            try:
+                Path(cached_path).unlink(missing_ok=True)
+            except Exception:
+                pass
+
     def merge_games(self) -> List[Dict[str, Any]]:
         steam_games     = self.scanner.scan_steam_library()
         steam_shortcuts = self.scanner.scan_steam_shortcuts()
@@ -309,6 +350,7 @@ class GameLauncher:
         sgdb_config = self.config.get("steamgriddb", {})
         if sgdb_config.get("enabled", False) and sgdb_config.get("parallel_requests", True):
             games = self.sgdb.fetch_images_parallel(games)
+            self._cache_animated_background(games)
 
         favorites = self.load_favorites()
         for game in games:
@@ -329,6 +371,40 @@ class GameLauncher:
         elif sort_by == "name":
             games.sort(key=lambda g: g.get("name", "").lower())
         return games
+
+    def _cache_animated_background(self, games: List[Dict[str, Any]]):
+        sgdb_config = self.config.get("steamgriddb", {})
+        if not sgdb_config.get("enabled", False) or not sgdb_config.get("prefer_animated", False):
+            return
+        for game in games:
+            url = game.get("image_animated", "")
+            if not url or url.startswith("file://") or url.startswith("/") or url.startswith("~"):
+                continue
+            cached_path = self.cached_image_path(url)
+            if cached_path == url:
+                continue
+            lock_file = Path(cached_path + ".download")
+            if lock_file.exists():
+                if Path(cached_path).exists() and self.validate_download(cached_path):
+                    lock_file.unlink(missing_ok=True)
+                    game["image_animated"] = cached_path
+                else:
+                    lock_file.unlink(missing_ok=True)
+                continue
+            if Path(cached_path).exists() and self.validate_download(cached_path):
+                game["image_animated"] = cached_path
+                continue
+            try:
+                lock_file.touch()
+            except Exception:
+                pass
+            self.download_image_to(url, cached_path, max_time=600)
+            try:
+                lock_file.unlink(missing_ok=True)
+            except Exception:
+                pass
+            if self.validate_download(cached_path):
+                game["image_animated"] = cached_path
 
     def load_wallust_colors(self) -> Dict[str, str]:
         wallust_path = expand_path(
