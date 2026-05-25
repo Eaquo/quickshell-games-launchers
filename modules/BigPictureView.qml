@@ -99,7 +99,7 @@ Item {
     Image {
         id: heroBg
         anchors.fill: parent
-        source: currentGame?.hero_image || currentGame?.image || ""
+        source: bp.heroSrc
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: false
@@ -109,7 +109,15 @@ Item {
         layer.effect: MultiEffect { blurEnabled: true; blur: 1.0; blurMax: 48 }
     }
 
-    property bool heroIsWebM: (currentGame?.hero_image || currentGame?.image || "").toLowerCase().endsWith(".webm")
+    // Préfère l'image SGDB animée (WebP/WebM) si disponible, sinon hero CDN statique
+    property string heroSrc: {
+        var sgdb = currentGame?.image || ""
+        var cdn  = currentGame?.hero_image || ""
+        var lc   = sgdb.toLowerCase()
+        if (lc.endsWith(".webp") || lc.endsWith(".webm") || lc.endsWith(".gif")) return sgdb
+        return cdn || sgdb
+    }
+    property bool heroIsWebM: heroSrc.toLowerCase().endsWith(".webm")
 
     // ── TOP BAR ─────────────────────────────────────────────────────────────
     Rectangle {
@@ -223,11 +231,23 @@ Item {
         anchors.right: parent.right
         anchors.bottom: gameStrip.top
 
+        // Placeholder cover (image fixe) pendant le chargement du hero
+        Image {
+            id: heroPlaceholder
+            anchors.fill: parent
+            source: currentGame?.image || ""
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            cache: true
+            visible: (!bp.heroIsWebM && heroImg.status !== Image.Ready)
+                  || (bp.heroIsWebM && heroPlayer.playbackState !== MediaPlayer.PlayingState)
+        }
+
         // Hero image (static / webp)
         AnimatedImage {
             id: heroImg
             anchors.fill: parent
-            source: bp.heroIsWebM ? "" : (currentGame?.hero_image || currentGame?.image || "")
+            source: bp.heroIsWebM ? "" : bp.heroSrc
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: false
@@ -247,16 +267,16 @@ Item {
         }
         MediaPlayer {
             id: heroPlayer
-            source: bp.heroIsWebM ? (currentGame?.hero_image || currentGame?.image || "") : ""
+            source: bp.heroIsWebM ? bp.heroSrc : ""
             videoOutput: heroVideo
             loops: MediaPlayer.Infinite
             onSourceChanged: if (source !== "") play()
         }
 
-        // Fallback (no image)
+        // Fallback initiales — dernier recours si même la cover est absente
         Rectangle {
             anchors.fill: parent
-            visible: (!bp.heroIsWebM && heroImg.status !== Image.Ready) || (bp.heroIsWebM && heroVideo.source === "")
+            visible: heroPlaceholder.status === Image.Error || heroPlaceholder.status === Image.Null
             color: "#111111"
             Text {
                 anchors.centerIn: parent

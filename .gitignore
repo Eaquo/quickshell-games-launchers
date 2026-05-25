@@ -30,6 +30,7 @@ games.toml.backup
 *.log
 favorites.json
 state.json
+clef steam grid.txt
 cache/
 .claude/
 *.tar
