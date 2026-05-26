@@ -80,9 +80,9 @@ pip install vdf
 yay -S quickshell-git
 paru -S quickshell-git
 
-# Font Awesome 7 (for icons)
-yay -S ttf-font-awesome-7
-paru -S ttf-font-awesome-7
+# Font Awesome (for icons)
+yay -S ttf-font-awesome
+paru -S ttf-font-awesome
 ```
 
 ## 🛠️ Installation
@@ -270,10 +270,14 @@ game-launcher/
 │   ├── LaunchOverlay.qml          # Animated launch overlay (normal mode)
 │   ├── I18n.qml                   # i18n strings (fr/en/es/ru/ja)
 │   └── service/
-│       ├── backend.py             # Steam/Heroic scan, SteamGridDB, TOML
+│       ├── backend.py             # Entry point: scan, merge, cache
 │       ├── gamepad.py             # Gamepad support
 │       ├── list_games.py          # Library display
-│       └── py_vdf_list.py
+│       ├── py_vdf_list.py
+│       └── fonction/
+│           ├── sgdb.py            # SteamGridDB client (dual fetch)
+│           ├── image_cache.py     # Image caching layer
+│           └── scanners.py        # Steam/Heroic/Lutris scanners
 ├── box-art/                       # Manual covers
 ├── cache/                         # SteamGridDB image cache
 └── Readme/
