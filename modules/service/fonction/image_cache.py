@@ -8,9 +8,10 @@ from typing import Any, Dict, Optional
 
 class ImageCache:
     def __init__(self, cache_file: Path, ttl_hours: int = 24):
+        self.cache_dir  = cache_file.parent / "images"
         self.cache_file = cache_file
-        self.ttl = timedelta(hours=ttl_hours)
-        self.cache = self._load_cache()
+        self.ttl        = timedelta(hours=ttl_hours)
+        self.cache      = self._load_cache()
 
     def _load_cache(self) -> Dict[str, Any]:
         if not self.cache_file.exists():
@@ -54,3 +55,13 @@ class ImageCache:
             del self.cache[key]
         if expired_keys:
             self._save_cache()
+
+    def cached_image_path(self, url: str) -> str:
+        import hashlib
+        from urllib.parse import urlparse
+        if not url or url.startswith("file://") or url.startswith("/") or url.startswith("~"):
+            return url
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        ext      = Path(urlparse(url).path).suffix or ".jpg"
+        url_hash = hashlib.md5(url.encode()).hexdigest()
+        return str(self.cache_dir / f"{url_hash}{ext}")

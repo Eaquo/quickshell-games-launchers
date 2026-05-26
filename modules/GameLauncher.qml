@@ -826,17 +826,33 @@ Rectangle {
                 // Indicateurs bas
                 Rectangle {
                     Layout.fillWidth: true; Layout.preferredHeight: 40; color: "transparent"
+                    QtObject {
+                        id: hd
+                        property int vis: Math.min(10, filteredGames.length || 1)
+                        property int step: 16
+                        property int visW: vis * step
+                        property int maxX: Math.max(0, filteredGames.length * step - visW)
+                        property int scrollTo: Math.min(maxX, Math.max(0, selectedIndex * step + 4 - visW / 2))
+                    }
                     Row {
-                        anchors.centerIn: parent; spacing: 8
-                        Repeater {
-                            model: Math.min(filteredGames.length, 10)
-                            Rectangle {
-                                width: 8; height: 8; radius: 4
-                                color: colors.color5 || "#00ffff"
-                                opacity: index === selectedIndex ? 1.0 : 0.3
-                                scale: index === selectedIndex ? 1.3 : 1.0
-                                Behavior on opacity { NumberAnimation { duration: 200 } }
-                                Behavior on scale { NumberAnimation { duration: 200 } }
+                        anchors.centerIn: parent; spacing: 12
+                        Rectangle {
+                            width: hd.visW; height: 8; clip: true; color: "transparent"
+                            Row {
+                                spacing: 8
+                                x: -hd.scrollTo
+                                Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                                Repeater {
+                                    model: filteredGames.length
+                                    Rectangle {
+                                        width: 8; height: 8; radius: 4
+                                        color: colors.color5 || "#00ffff"
+                                        opacity: index === selectedIndex ? 1.0 : 0.3
+                                        scale: index === selectedIndex ? 1.3 : 1.0
+                                        Behavior on opacity { NumberAnimation { duration: 200 } }
+                                        Behavior on scale { NumberAnimation { duration: 200 } }
+                                    }
+                                }
                             }
                         }
                     }
@@ -898,17 +914,31 @@ Rectangle {
                     Layout.alignment: Qt.AlignRight | Qt.AlignVCenter; color: "transparent"
                     Column {
                         anchors.centerIn: parent; spacing: 12
-                        Column {
-                            anchors.horizontalCenter: parent.horizontalCenter; spacing: 6
-                            Repeater {
-                                model: Math.min(filteredGames.length, 10)
-                                Rectangle {
-                                    width: 8; height: 8; radius: 4
-                                    color: colors.color5||"#00ffff"
-                                    opacity: index === selectedIndex ? 1.0 : 0.3
-                                    scale: index === selectedIndex ? 1.3 : 1.0
-                                    Behavior on opacity { NumberAnimation { duration: 200 } }
-                                    Behavior on scale { NumberAnimation { duration: 200 } }
+                        QtObject {
+                            id: vd
+                            property int vis: Math.min(10, filteredGames.length || 1)
+                            property int step: 16
+                            property int visH: vis * step
+                            property int maxY: Math.max(0, filteredGames.length * step - visH)
+                            property int scrollTo: Math.min(maxY, Math.max(0, selectedIndex * step + 4 - visH / 2))
+                        }
+                        Rectangle {
+                            width: 8; height: vd.visH; clip: true; color: "transparent"
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            Column {
+                                spacing: 8
+                                y: -vd.scrollTo
+                                Behavior on y { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                                Repeater {
+                                    model: filteredGames.length
+                                    Rectangle {
+                                        width: 8; height: 8; radius: 4
+                                        color: colors.color5||"#00ffff"
+                                        opacity: index === selectedIndex ? 1.0 : 0.3
+                                        scale: index === selectedIndex ? 1.3 : 1.0
+                                        Behavior on opacity { NumberAnimation { duration: 200 } }
+                                        Behavior on scale { NumberAnimation { duration: 200 } }
+                                    }
                                 }
                             }
                         }
