@@ -133,7 +133,7 @@ exclude_keywords = [
 
 # ── STEAMGRIDDB ──────────────────────────────────────────────────────────────
 #   Fetches high-quality cover art from steamgriddb.com
-#   Free API key: https://www.steamgriddb.com/api/v2
+#   Free API key: https://www.steamgriddb.com/profile/preferences/api
 # ─────────────────────────────────────────────────────────────────────────────
 
 [steamgriddb]
