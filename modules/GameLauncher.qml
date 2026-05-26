@@ -796,6 +796,7 @@ Rectangle {
                         width: itemWidth; height: itemHeight
                         gameName: modelData.name || "Unknown"
                         gameImage: modelData.image || ""
+                        gameImageAnimated: modelData.image_animated || ""
                         gameCategory: modelData.category || ""
                         gameSource: modelData.source || ""
                         isFavorite: modelData.favorite || false
@@ -893,6 +894,7 @@ Rectangle {
                         width: itemWidth; height: itemHeight
                         gameName: modelData.name || "Unknown"
                         gameImage: modelData.image || ""
+                        gameImageAnimated: modelData.image_animated || ""
                         gameCategory: modelData.category || ""
                         gameSource: modelData.source || ""
                         isFavorite: modelData.favorite || false

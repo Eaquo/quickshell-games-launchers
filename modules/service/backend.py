@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 import json
+import os
+import re
 import sys
 import tomllib
+import urllib.request
 from pathlib import Path
 from typing import Any, Dict, List
-import re
-import os
 
 # Permet les imports absolus depuis modules/service/ quand lancé comme script
 sys.path.insert(0, str(Path(__file__).parent))
@@ -359,7 +360,49 @@ class GameLauncher:
         }
 
     def output_json(self):
-        print(json.dumps(self.get_all_games(), indent=2))
+        data = self.get_all_games()
+        print(json.dumps(data, indent=2), flush=True)
+        self._spawn_image_downloader(data["games"])
+
+    def _spawn_image_downloader(self, games: List[Dict[str, Any]]):
+        import subprocess, tempfile
+        urls = []
+        for game in games:
+            for field in ("image", "image_animated", "logo"):
+                url = game.get(field, "")
+                if url and url.startswith("http"):
+                    urls.append(url)
+        if not urls:
+            return
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+        json.dump(urls, tmp)
+        tmp.close()
+        subprocess.Popen(
+            ["python3", str(Path(__file__).absolute()), "download-cache", tmp.name],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            start_new_session=True
+        )
+
+    def download_missing_images(self, urls_file: str):
+        try:
+            with open(urls_file) as f:
+                urls = json.load(f)
+            os.unlink(urls_file)
+        except Exception:
+            return
+        for url in urls:
+            local = self.image_cache.cached_image_path(url)
+            if Path(local).exists():
+                continue
+            try:
+                request = urllib.request.Request(url)
+                request.add_header("User-Agent", "QuickShell-GameLauncher/2.0")
+                with urllib.request.urlopen(request, timeout=30) as resp:
+                    data = resp.read()
+                with open(local, "wb") as f:
+                    f.write(data)
+            except Exception:
+                pass
 
 
 def main():
@@ -369,6 +412,8 @@ def main():
         GameLauncher().toggle_favorite(name, source)
     elif len(sys.argv) >= 4 and sys.argv[1] == "save-state":
         GameLauncher().save_state(sys.argv[2], sys.argv[3])
+    elif len(sys.argv) >= 3 and sys.argv[1] == "download-cache":
+        GameLauncher().download_missing_images(sys.argv[2])
     else:
         GameLauncher().output_json()
 

@@ -102,22 +102,14 @@ Item {
         source: bp.heroSrc
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
-        cache: false
+        cache: true
         opacity: 0.18
-        visible: !heroIsWebM
         layer.enabled: true
         layer.effect: MultiEffect { blurEnabled: true; blur: 1.0; blurMax: 48 }
     }
 
-    // Préfère l'image SGDB animée (WebP/WebM) si disponible, sinon hero CDN statique
-    property string heroSrc: {
-        var sgdb = currentGame?.image || ""
-        var cdn  = currentGame?.hero_image || ""
-        var lc   = sgdb.toLowerCase()
-        if (lc.endsWith(".webp") || lc.endsWith(".webm") || lc.endsWith(".gif")) return sgdb
-        return cdn || sgdb
-    }
-    property bool heroIsWebM: heroSrc.toLowerCase().endsWith(".webm")
+    // Hero toujours statique — moins de ressources pour la grande image
+    property string heroSrc: currentGame?.image || ""
 
     // ── TOP BAR ─────────────────────────────────────────────────────────────
     Rectangle {
@@ -231,52 +223,21 @@ Item {
         anchors.right: parent.right
         anchors.bottom: gameStrip.top
 
-        // Placeholder cover (image fixe) pendant le chargement du hero
+        // Hero statique — Image simple, pas d'animé pour économiser les ressources
         Image {
-            id: heroPlaceholder
+            id: heroImg
             anchors.fill: parent
-            source: currentGame?.image || ""
+            source: bp.heroSrc
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
-            visible: (!bp.heroIsWebM && heroImg.status !== Image.Ready)
-                  || (bp.heroIsWebM && heroPlayer.playbackState !== MediaPlayer.PlayingState)
-        }
-
-        // Hero image (static / webp)
-        AnimatedImage {
-            id: heroImg
-            anchors.fill: parent
-            source: bp.heroIsWebM ? "" : bp.heroSrc
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-            cache: false
-            playing: true
-            visible: !bp.heroIsWebM
-
-            Behavior on source {
-                // fade transition on game change
-            }
-        }
-
-        // Hero WebM
-        VideoOutput {
-            id: heroVideo
-            anchors.fill: parent
-            visible: bp.heroIsWebM
-        }
-        MediaPlayer {
-            id: heroPlayer
-            source: bp.heroIsWebM ? bp.heroSrc : ""
-            videoOutput: heroVideo
-            loops: MediaPlayer.Infinite
-            onSourceChanged: if (source !== "") play()
+            smooth: true
         }
 
         // Fallback initiales — dernier recours si même la cover est absente
         Rectangle {
             anchors.fill: parent
-            visible: heroPlaceholder.status === Image.Error || heroPlaceholder.status === Image.Null
+            visible: heroImg.status === Image.Error || heroImg.status === Image.Null
             color: "#111111"
             Text {
                 anchors.centerIn: parent
@@ -656,7 +617,12 @@ Item {
                     Behavior on scale   { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
                     Behavior on opacity { NumberAnimation { duration: 200 } }
 
-                    // Cover
+                    property bool thumbHasAnim: {
+                        var a = modelData.image_animated || ""
+                        return a !== "" && a.toLowerCase().endsWith(".webp")
+                    }
+
+                    // Cover statique (toujours visible sauf si animée active)
                     Image {
                         anchors.fill: parent
                         anchors.margins: 2
@@ -664,6 +630,30 @@ Item {
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
                         cache: true
+                        visible: !(isSelected && stripCard.thumbHasAnim)
+
+                        layer.enabled: true
+                        layer.effect: MultiEffect {
+                            maskEnabled: true
+                            maskThresholdMin: 0.5
+                            maskSource: ShaderEffectSource {
+                                sourceItem: Rectangle {
+                                    width: stripCard.width; height: stripCard.height; radius: stripCard.radius
+                                }
+                            }
+                        }
+                    }
+
+                    // Cover animée — uniquement sur le thumbnail sélectionné
+                    AnimatedImage {
+                        anchors.fill: parent
+                        anchors.margins: 2
+                        source: (isSelected && stripCard.thumbHasAnim) ? (modelData.image_animated || "") : ""
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                        cache: false
+                        playing: isSelected
+                        visible: isSelected && stripCard.thumbHasAnim
 
                         layer.enabled: true
                         layer.effect: MultiEffect {

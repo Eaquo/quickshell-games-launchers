@@ -4,6 +4,7 @@ import re
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .image_cache import ImageCache
@@ -39,7 +40,7 @@ class SGDBClient:
         cache_key = f"steam_cdn:{app_id}"
         cached_url = self.image_cache.get(cache_key)
         if cached_url:
-            return cached_url
+            return self._local_or_url(cached_url)
 
         base_url = f"https://cdn.cloudflare.steamstatic.com/steam/apps/{app_id}"
         fallback_urls = [
@@ -51,16 +52,25 @@ class SGDBClient:
 
         if self.check_url_exists(fallback_urls[0], timeout=1):
             self.image_cache.set(cache_key, fallback_urls[0])
-            return fallback_urls[0]
+            return self._local_or_url(fallback_urls[0])
 
         for url in fallback_urls[1:]:
             if self.check_url_exists(url, timeout=1):
                 self.image_cache.set(cache_key, url)
-                return url
+                return self._local_or_url(url)
 
         return fallback_urls[0]
 
     # ── Helpers SGDB ───────────────────────────────────────────────────────
+
+    def _local_or_url(self, url: str) -> str:
+        """Retourne le chemin local file:// si le fichier est téléchargé, sinon l'URL."""
+        if not url or not url.startswith("http"):
+            return url
+        local = self.image_cache.cached_image_path(url)
+        if Path(local).exists():
+            return "file://" + local
+        return url
 
     def get_steamgriddb_platform(self, source: str, category: str) -> str:
         platform_map = {
@@ -101,7 +111,8 @@ class SGDBClient:
 
     # ── Cover ──────────────────────────────────────────────────────────────
 
-    def get_steamgriddb_cover_url(self, app_id: str, platform: str = "steam", game_name: str = "") -> Optional[str]:
+    def get_steamgriddb_cover_url(self, app_id: str, platform: str = "steam",
+                                   game_name: str = "", prefer_animated: Optional[bool] = None) -> Optional[str]:
         sgdb_config = self.config.get("steamgriddb", {})
         if not sgdb_config.get("enabled", False):
             return None
@@ -109,11 +120,14 @@ class SGDBClient:
         if not api_key:
             return None
 
-        anim_suffix = "animated" if sgdb_config.get("prefer_animated", False) else "static"
+        if prefer_animated is None:
+            prefer_animated = sgdb_config.get("prefer_animated", False)
+
+        anim_suffix = "animated" if prefer_animated else "static"
         cache_key = f"{platform}:{app_id}:{sgdb_config.get('image_type', 'grid')}:{anim_suffix}"
         cached_url = self.image_cache.get(cache_key)
         if cached_url is not None:
-            return cached_url if cached_url else None
+            return self._local_or_url(cached_url) if cached_url else None
 
         image_type = sgdb_config.get("image_type", "grid")
         endpoint_map = {"grid": "grids", "hero": "heroes", "logo": "logos", "icon": "icons"}
@@ -197,8 +211,6 @@ class SGDBClient:
                 pool = sorted(imgs, key=score_image, reverse=True)
             return pool[0].get("url", pool[0].get("thumb"))
 
-        prefer_animated = sgdb_config.get("prefer_animated", False)
-
         if prefer_animated:
             raw = do_request(make_url("animated", with_dims=True))
             if raw is None and dimensions:
@@ -206,7 +218,7 @@ class SGDBClient:
             image_url = best_image(raw, prefer_webm=False)
             if image_url:
                 self.image_cache.set(cache_key, image_url)
-                return image_url
+                return self._local_or_url(image_url)
 
         raw = do_request(make_url("static", with_dims=True, mimes_val="image/png"))
         if raw is None and dimensions:
@@ -214,7 +226,7 @@ class SGDBClient:
         image_url = best_image(raw, prefer_webm=False)
         if image_url:
             self.image_cache.set(cache_key, image_url)
-            return image_url
+            return self._local_or_url(image_url)
 
         if game_name:
             sgdb_id = self._search_sgdb_id_by_name(game_name, api_key, timeout)
@@ -227,14 +239,14 @@ class SGDBClient:
                     image_url = best_image(raw, prefer_webm=False)
                     if image_url:
                         self.image_cache.set(cache_key, image_url)
-                        return image_url
+                        return self._local_or_url(image_url)
                 raw = do_request(make_url("static", with_dims=True, mimes_val="image/png", url_base=name_base))
                 if raw is None and dimensions:
                     raw = do_request(make_url("static", with_dims=False, mimes_val="image/png", url_base=name_base))
                 image_url = best_image(raw, prefer_webm=False)
                 if image_url:
                     self.image_cache.set(cache_key, image_url)
-                    return image_url
+                    return self._local_or_url(image_url)
 
         self.image_cache.set(cache_key, "")
         return None
@@ -252,7 +264,7 @@ class SGDBClient:
         cache_key = f"{platform}:{app_id}:logo"
         cached_url = self.image_cache.get(cache_key)
         if cached_url is not None:
-            return cached_url if cached_url else None
+            return self._local_or_url(cached_url) if cached_url else None
 
         url = f"https://www.steamgriddb.com/api/v2/logos/{platform}/{app_id}?types=static&mimes=image/png"
         timeout = sgdb_config.get("request_timeout", 3)
@@ -269,7 +281,7 @@ class SGDBClient:
                     if images:
                         logo_url = images[0].get("url", images[0].get("thumb"))
                         self.image_cache.set(cache_key, logo_url)
-                        return logo_url
+                        return self._local_or_url(logo_url)
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 self.image_cache.set(cache_key, "")
@@ -290,7 +302,7 @@ class SGDBClient:
                         if d2.get("success") and d2.get("data"):
                             logo_url = d2["data"][0].get("url", d2["data"][0].get("thumb"))
                             self.image_cache.set(cache_key, logo_url)
-                            return logo_url
+                            return self._local_or_url(logo_url)
                 except Exception:
                     pass
 
@@ -320,7 +332,9 @@ class SGDBClient:
         if not sgdb_config.get("enabled", False) or not sgdb_config.get("parallel_requests", True):
             return games
 
-        max_workers = sgdb_config.get("max_workers", 10)
+        max_workers    = sgdb_config.get("max_workers", 10)
+        prefer_animated = sgdb_config.get("prefer_animated", False)
+
         games_to_fetch = []
         for i, game in enumerate(games):
             source   = game.get("source", "")
@@ -339,26 +353,37 @@ class SGDBClient:
         if not self._check_connectivity():
             return games
 
-        def fetch_cover_and_logo(item):
+        def fetch_all(item):
             idx, game = item
             platform  = self.get_steamgriddb_platform(game.get("source", ""), game.get("category", ""))
             appid     = game.get("appid")
             name      = game.get("name", "")
 
-            cover_url = self.get_steamgriddb_cover_url(appid, platform, game_name=name)
-            if not cover_url and game.get("source") == "steam" and game.get("category") != "steam-shortcut":
-                cover_url = self.get_steam_cdn_fallback_url(appid)
+            # Toujours récupérer la version statique
+            static_url = self.get_steamgriddb_cover_url(appid, platform, game_name=name, prefer_animated=False)
+            if not static_url and game.get("source") == "steam" and game.get("category") != "steam-shortcut":
+                static_url = self.get_steam_cdn_fallback_url(appid)
+
+            # Version animée séparée si activée
+            animated_url = None
+            if prefer_animated:
+                animated_url = self.get_steamgriddb_cover_url(appid, platform, game_name=name, prefer_animated=True)
+                # Si l'animée est identique à la statique (pas d'animée dispo), on la vide
+                if animated_url and animated_url == static_url:
+                    animated_url = None
 
             logo_url = self.get_steamgriddb_logo_url(appid, platform, game_name=name)
-            return idx, cover_url, logo_url
+            return idx, static_url, animated_url, logo_url
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(fetch_cover_and_logo, item): item for item in games_to_fetch}
+            futures = {executor.submit(fetch_all, item): item for item in games_to_fetch}
             for future in as_completed(futures):
                 try:
-                    idx, cover_url, logo_url = future.result()
-                    if cover_url:
-                        games[idx]["image"] = cover_url
+                    idx, static_url, animated_url, logo_url = future.result()
+                    if static_url:
+                        games[idx]["image"] = static_url
+                    if animated_url:
+                        games[idx]["image_animated"] = animated_url
                     if logo_url:
                         games[idx]["logo"] = logo_url
                 except Exception:

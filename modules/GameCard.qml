@@ -9,6 +9,7 @@ Rectangle {
 
     property string gameName: "Game"
     property string gameImage: ""
+    property string gameImageAnimated: ""
     property string gameCategory: ""
     property string gameSource: ""  // steam, manual, config
     property bool isFavorite: false
@@ -17,8 +18,11 @@ Rectangle {
     property int lastPlayed: 0  // Unix timestamp
     property real glowStrength: 0.8
     property real glowBlur: 12
-    property bool isWebM: gameImage.toLowerCase().endsWith(".webm")
-    property bool isAnimatedWebP: gameImage.toLowerCase().endsWith(".webp")
+    property bool hasLocalAnimated: gameImageAnimated !== "" &&
+        (gameImageAnimated.startsWith("file://") || gameImageAnimated.startsWith("/"))
+    property string effectiveImage: hasLocalAnimated ? gameImageAnimated : gameImage
+    property bool isWebM: effectiveImage.toLowerCase().endsWith(".webm")
+    property bool isAnimatedWebP: effectiveImage.toLowerCase().endsWith(".webp")
     property bool isAnimated: isWebM || isAnimatedWebP
     property real glowOpacity: 0.8
 
@@ -46,7 +50,7 @@ Rectangle {
         if (card.isWebM) {
             if (isSelected) {
                 clearVideoTimer.stop()
-                if (card._webmSource === "") card._webmSource = gameImage
+                if (card._webmSource === "") card._webmSource = card.effectiveImage
                 videoPlayer.play()
             } else {
                 videoPlayer.pause()
@@ -142,7 +146,7 @@ Rectangle {
                 anchors.fill: parent
                 anchors.margins: 2
                 visible: card.isAnimatedWebP && (!card.isSelected || animCover.status !== Image.Ready)
-                source: visible ? gameImage : ""
+                source: visible ? card.effectiveImage : ""
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 cache: true
@@ -171,7 +175,7 @@ Rectangle {
                 anchors.fill: parent
                 anchors.margins: 2
                 visible: !card.isAnimated
-                source: visible ? gameImage : ""
+                source: visible ? card.effectiveImage : ""
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 smooth: true
@@ -214,7 +218,7 @@ Rectangle {
                 anchors.fill: parent
                 anchors.margins: 2
                 visible: card.isAnimatedWebP && card.isSelected
-                source: visible ? gameImage : ""
+                source: visible ? card.effectiveImage : ""
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 smooth: true
