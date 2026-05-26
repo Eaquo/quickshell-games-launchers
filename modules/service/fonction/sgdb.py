@@ -4,7 +4,6 @@ import re
 import urllib.error
 import urllib.request
 import threading
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional
 
@@ -15,21 +14,6 @@ class SGDBClient:
     def __init__(self, config: Dict[str, Any], image_cache: ImageCache):
         self.config = config
         self.image_cache = image_cache
-
-    def cached_image_path(self, url: str) -> str:
-        import hashlib
-        from urllib.parse import urlparse
-        if not url or url.startswith("file://") or url.startswith("/") or url.startswith("~"):
-            return url
-        config_path = self.config.get("_config_path")
-        if config_path:
-            cache_dir = Path(config_path).parent / "cache" / "images"
-        else:
-            cache_dir = Path.home() / ".config" / "quickshell" / "game-launcher" / "cache" / "images"
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        ext = Path(urlparse(url).path).suffix or ".jpg"
-        url_hash = hashlib.md5(url.encode()).hexdigest()
-        return str(cache_dir / f"{url_hash}{ext}")
 
     # ── Connectivité ───────────────────────────────────────────────────────
 

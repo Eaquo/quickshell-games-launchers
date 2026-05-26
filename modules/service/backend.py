@@ -266,15 +266,6 @@ class GameLauncher:
             result.append(merged)
         return result
 
-    def cached_image_path(self, url: str) -> str:
-        if not url or url.startswith("file://") or url.startswith("/") or url.startswith("~"):
-            return url
-        cache_dir = self.config_path.parent / "cache" / "images"
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        ext = Path(urlparse(url).path).suffix or ".jpg"
-        url_hash = hashlib.md5(url.encode()).hexdigest()
-        return str(cache_dir / f"{url_hash}{ext}")
-
     def validate_download(self, path: str) -> bool:
         try:
             p = Path(path)
@@ -382,7 +373,7 @@ class GameLauncher:
             url = game.get("image_animated", "")
             if not url or url.startswith("file://") or url.startswith("/") or url.startswith("~"):
                 continue
-            cached_path = self.cached_image_path(url)
+            cached_path = self.image_cache.cached_image_path(url)
             if cached_path == url:
                 continue
             lock_file = Path(cached_path + ".download")
