@@ -9,6 +9,7 @@ import os
 import threading
 import hashlib
 from urllib.parse import urlparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Permet les imports absolus depuis modules/service/ quand lancé comme script
 sys.path.insert(0, str(Path(__file__).parent))
@@ -376,6 +377,7 @@ class GameLauncher:
         sgdb_config = self.config.get("steamgriddb", {})
         if not sgdb_config.get("enabled", False) or not sgdb_config.get("prefer_animated", False):
             return
+        to_download = []
         for game in games:
             url = game.get("image_animated", "")
             if not url or url.startswith("file://") or url.startswith("/") or url.startswith("~"):
@@ -394,17 +396,30 @@ class GameLauncher:
             if Path(cached_path).exists() and self.validate_download(cached_path):
                 game["image_animated"] = cached_path
                 continue
+            to_download.append((game, url, cached_path, lock_file))
+        if not to_download:
+            return
+
+        def download_worker(game, url, cached_path, lock_file):
             try:
                 lock_file.touch()
             except Exception:
                 pass
-            self.download_image_to(url, cached_path, max_time=600)
+            self.download_image_to(url, cached_path, max_time=120)
             try:
                 lock_file.unlink(missing_ok=True)
             except Exception:
                 pass
             if self.validate_download(cached_path):
                 game["image_animated"] = cached_path
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = [executor.submit(download_worker, g, u, c, l) for g, u, c, l in to_download]
+            for future in as_completed(futures):
+                try:
+                    future.result()
+                except Exception:
+                    pass
 
     def load_wallust_colors(self) -> Dict[str, str]:
         wallust_path = expand_path(
