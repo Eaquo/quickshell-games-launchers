@@ -222,7 +222,7 @@ Rectangle {
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 smooth: true
-                cache: true
+                cache: false
                 playing: true
                 paused: false
 
