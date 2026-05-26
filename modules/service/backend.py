@@ -6,9 +6,6 @@ from pathlib import Path
 from typing import Any, Dict, List
 import re
 import os
-import threading
-import hashlib
-from urllib.parse import urlparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Permet les imports absolus depuis modules/service/ quand lancé comme script
