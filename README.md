@@ -4,7 +4,7 @@
 
 **Sleek game launchers for Hyprland with pywal/wallust integration**
 
-[![Stars](https://img.shields.io/github/stars/Eaquo/Quickshell-Games?style=for-the-badge&logo=github&color=DEA6FF&labelColor=302D41)](https://github.com/Eaquo/Quickshell-Games/stargazers)
+[![Stars](https://img.shields.io/github/stars/Eaquo/quickshell-games-launchers?style=for-the-badge&logo=github&color=DEA6FF&labelColor=302D41)](https://github.com/Eaquo/quickshell-games-launchers/stargazers)
 [![Hyprland](https://img.shields.io/badge/Hyprland-compatible-89B4FA?style=for-the-badge&logo=wayland&logoColor=white&labelColor=302D41)](https://hyprland.org)
 [![AUR](https://img.shields.io/badge/AUR-quickshell--games--launchers--git-F9E2AF?style=for-the-badge&logo=archlinux&logoColor=white&labelColor=302D41)](https://aur.archlinux.org/packages/quickshell-games-launchers-git)
 
