@@ -1,11 +1,41 @@
+<div align="center">
+
 # Quickshell Launchers
-Collection of Quickshell launchers for Hyprland with pywal/wallust integration.
 
-![Game Launcher Preview](Readme/asset/image.png)
+**Sleek game launchers for Hyprland with pywal/wallust integration**
 
-## 📦 Projects
+[![Stars](https://img.shields.io/github/stars/Eaquo/Quickshell-Games?style=for-the-badge&logo=github&color=DEA6FF&labelColor=302D41)](https://github.com/Eaquo/Quickshell-Games/stargazers)
+[![Hyprland](https://img.shields.io/badge/Hyprland-compatible-89B4FA?style=for-the-badge&logo=wayland&logoColor=white&labelColor=302D41)](https://hyprland.org)
+[![AUR](https://img.shields.io/badge/AUR-quickshell--games--launchers--git-F9E2AF?style=for-the-badge&logo=archlinux&logoColor=white&labelColor=302D41)](https://aur.archlinux.org/packages/quickshell-games-launchers-git)
+
+<br>
+
+<table>
+<tr>
+<td width="50%" align="center">
+
+**📸 Preview**
+
+<img src="Readme/asset/image.png" alt="Game Launcher Preview" width="100%"/>
+
+</td>
+<td width="50%" align="center">
+
+**🎬 Demo**
 
 https://github.com/user-attachments/assets/703e48dd-86d1-49cb-8bc8-1fe45b89e9f5
+
+</td>
+</tr>
+</table>
+
+[**Features**](#-features) · [**Install**](#%EF%B8%8F-installation) · [**Configuration**](#%EF%B8%8F-configuration) · [**Big Picture**](#-big-picture-mode) · [**Gamepad**](#-gamepad)
+
+</div>
+
+---
+
+## 📦 Projects
 
 ### 🎮 Game Launcher
 
@@ -13,7 +43,8 @@ Game launcher with multi-platform support and a sleek animated interface.
 
 ![Game Launcher](Readme/asset/image_2.png)
 
-**Features:**
+## ✨ Features
+
 - 🎯 Support for Steam, non-Steam games, Heroic (Epic/GOG/Amazon), and manual entries
 - 🎮 Automatic detection of non-Steam games added to Steam (via shortcuts.vdf)
 - 🖼️ Automatic cover art from Steam CDN / SteamGridDB (animated WebP/WebM heroes)
@@ -29,7 +60,7 @@ Game launcher with multi-platform support and a sleek animated interface.
 - 🔍 Live search
 - 📚 Library view with installation paths
 
-**Controls:**
+## ⌨️ Controls
 
 | Key | Action |
 |-----|--------|
@@ -47,7 +78,7 @@ Game launcher with multi-platform support and a sleek animated interface.
 ## 📺 Big Picture Mode
 
 <!-- Add your screenshot here:
-![Big Picture Mode](asset/bigpicture.png)
+![Big Picture Mode](asset/Bigmode.png)
 -->
 
 Full-screen Steam Deck-style interface with:
@@ -66,8 +97,9 @@ Full-screen Steam Deck-style interface with:
 | ![](https://img.shields.io/badge/SELECT-2c3e50?style=flat-square&logo=xbox&logoColor=white) | Toggle favorite |
 | ![](https://img.shields.io/badge/B-c0392b?style=flat-square&logo=xbox&logoColor=white) | Close |
 
+---
 
-### Prerequisites
+## 📋 Prerequisites
 
 ```bash
 # Arch Linux
@@ -104,12 +136,9 @@ git clone https://github.com/Eaquo/Quickshell-Games.git
 cp -r Quickshell-Games/game-launcher ~/.config/quickshell/game-launcher
 ```
 
-
-
 ### Hyprland keybind
 
 In `~/.config/hypr/hyprland.conf`:
-Example:
 ```conf
 bind = SUPER, G, exec, ~/.config/quickshell/game-launcher/toggle.sh
 ```
@@ -124,7 +153,8 @@ bind = SUPER, G, exec, quickshell-game
 
 Everything lives in `~/.config/quickshell/game-launcher/config.toml`.
 
-### Display
+<details>
+<summary><b>Display</b></summary>
 
 ```toml
 [display]
@@ -135,8 +165,10 @@ item_width = 400
 item_height = 200
 spacing = 20
 ```
+</details>
 
-### Appearance & wallust
+<details>
+<summary><b>Appearance & wallust</b></summary>
 
 ```toml
 [appearance]
@@ -148,8 +180,10 @@ show_playtime = true
 blur_background = true
 background_opacity = 0.85
 ```
+</details>
 
-### Behavior
+<details>
+<summary><b>Behavior</b></summary>
 
 ```toml
 [behavior]
@@ -157,8 +191,10 @@ sort_by = "recent"           # recent, alphabetical, playtime
 show_favorites_first = true
 close_on_launch = true
 ```
+</details>
 
-### Animations
+<details>
+<summary><b>Animations</b></summary>
 
 ```toml
 [animations]
@@ -166,8 +202,10 @@ enabled = true
 duration_ms = 300
 ease_type = "OutCubic"
 ```
+</details>
 
-### Steam
+<details>
+<summary><b>Steam</b></summary>
 
 ```toml
 [steam]
@@ -178,8 +216,10 @@ library_paths = [
     # "/mnt/games/SteamLibrary/steamapps",                      # external drive
 ]
 ```
+</details>
 
-### SteamGridDB (optional but recommended for animated covers)
+<details>
+<summary><b>SteamGridDB</b> (optional but recommended for animated covers)</summary>
 
 ```toml
 [steamgriddb]
@@ -199,8 +239,10 @@ request_timeout = 3        # seconds
 
 cache_ttl_hours = 48
 ```
+</details>
 
-### Heroic (Epic / GOG / Amazon)
+<details>
+<summary><b>Heroic</b> (Epic / GOG / Amazon)</summary>
 
 ```toml
 [heroic]
@@ -214,8 +256,10 @@ scan_gog = true
 scan_amazon = true
 scan_sideload = true
 ```
+</details>
 
-### Filtering
+<details>
+<summary><b>Filtering</b></summary>
 
 ```toml
 [filtering]
@@ -223,8 +267,10 @@ games_only = false
 exclude_categories = ["desktop"]
 exclude_keywords = ["Launcher", "Manager", "Runtime", "SDK", "Tool"]
 ```
+</details>
 
-### Manual games
+<details>
+<summary><b>Manual games</b></summary>
 
 ```toml
 box_art_dir = "~/.config/quickshell/game-launcher/box-art"
@@ -234,6 +280,7 @@ title = "My App"
 launch_command = "my-command"
 path_box_art = "cover.png"   # relative to box_art_dir
 ```
+</details>
 
 ---
 
@@ -304,29 +351,41 @@ game-launcher/
 
 ## 🔧 Troubleshooting
 
-**Launcher doesn't open**
+<details>
+<summary><b>Launcher doesn't open</b></summary>
+
 ```bash
 quickshell -c ~/.config/quickshell/game-launcher/shell.qml
 # Check for errors in the terminal
 ```
+</details>
 
-**No Steam games detected**
+<details>
+<summary><b>No Steam games detected</b></summary>
+
 ```bash
 ls ~/.local/share/Steam/steamapps/*.acf
 # Make sure the path in config.toml matches
 ```
+</details>
 
-**SteamGridDB covers not loading**
+<details>
+<summary><b>SteamGridDB covers not loading</b></summary>
+
 - Check that your API key is correct in config.toml
 - Look at `cache/image_cache.json` to see resolved URLs
 - Increase `request_timeout` if your connection is slow
+</details>
 
-**Error `No module named 'toml'`**
+<details>
+<summary><b>Error `No module named 'toml'`</b></summary>
+
 ```bash
 pip install toml
 # or
 sudo pacman -S python-toml
 ```
+</details>
 
 ---
 
@@ -359,8 +418,10 @@ Inspired by [caelestia-dots/shell](https://github.com/caelestia-dots/shell)
 
 ---
 
+<div align="center">
+
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/waxdred)
 
-**Author:** Florian
-**Version:** 1.2.0
-**Date:** 2026-05-21
+**Author** · Florian &nbsp;·&nbsp; **Version** · 1.2.0 &nbsp;·&nbsp; **Date** · 2026-05-21
+
+</div>
