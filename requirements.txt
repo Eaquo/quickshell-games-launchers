@@ -1,4 +1,6 @@
-# No external dependencies required!
+# Python 3.11+ required (uses built-in tomllib)
+vdf>=3.4         # Steam shortcuts.vdf parsing (non-Steam games)
+evdev>=1.6       # Gamepad support (optional, Linux only)# No external dependencies required!
 # Using tomllib (built-in since Python 3.11+)
 vdf>=3.4
 evdev>=1.6
