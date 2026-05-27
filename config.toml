@@ -139,7 +139,7 @@ exclude_keywords = [
 [steamgriddb]
 
 enabled = true
-api_key = "66785c05faf41a94b340ab703aeabdd1"   # ← paste your key here
+api_key = ""   # ← paste your key here
 
 # Image type to fetch
 #   Values: grid (portrait cover)  |  hero (wide banner)  |  logo  |  icon
