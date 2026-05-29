@@ -24,6 +24,8 @@ BUTTON_MAP = {
     ecodes.BTN_DPAD_RIGHT: "right",
     ecodes.BTN_DPAD_UP:    "up",
     ecodes.BTN_DPAD_DOWN:  "down",
+    ecodes.BTN_TL:         "source_prev",
+    ecodes.BTN_TR:         "source_next",
 }
 
 AXIS_DEADZONE = 0.4 

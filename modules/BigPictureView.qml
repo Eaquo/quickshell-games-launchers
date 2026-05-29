@@ -284,9 +284,12 @@ Item {
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: bp.bpGames.length + " " + i18n.t("games")
+                text: bp.bpSearch !== ""
+                    ? bp.bpGames.length + " " + i18n.t("results")
+                    : bp.bpGames.length + " " + i18n.t("games")
                 font.pixelSize: 12; font.family: "Open Sans Regular"
-                color: Qt.rgba(1,1,1,0.4)
+                color: bp.bpSearch !== "" ? (colors.color5 || "#73ff00") : Qt.rgba(1,1,1,0.4)
+                Behavior on color { ColorAnimation { duration: 150 } }
             }
 
             Rectangle {
@@ -614,7 +617,6 @@ Item {
         }
     }
 
-    // ── GAME STRIP (bottom) ──────────────────────────────────────────────────
     Rectangle {
         id: gameStrip
         anchors.bottom: parent.bottom

@@ -22,6 +22,7 @@ Rectangle {
     property string orientation: config?.display?.orientation ?? "horizontal"
     property int gridColumns: config?.display?.grid_size?.[0] ?? 4
     property int gridRows: config?.display?.grid_size?.[1] ?? 3
+    property int effectiveRows: orientation === "horizontal" ? 1 : gridRows
     property int itemWidth: config?.display?.item_width ?? 200
     property int itemHeight: config?.display?.item_height ?? 300
     property int spacing: config?.display?.spacing ?? 20
@@ -38,7 +39,7 @@ Rectangle {
     }
 
     width: bigPictureMode ? screenW : sidebarWidth + spacing + (itemWidth * gridColumns) + (spacing * (gridColumns + 1))
-    height: bigPictureMode ? screenH : (itemHeight * gridRows) + (spacing * (gridRows + 1)) + 60 + 44 + spacing
+    height: bigPictureMode ? screenH : (itemHeight * effectiveRows) + (spacing * (effectiveRows + 1)) + 60 + 44 + spacing
 
     focus: true
     activeFocusOnTab: true
@@ -123,6 +124,8 @@ Rectangle {
             navigateDown(); event.accepted = true
         } else if (event.key === Qt.Key_F && (event.modifiers & Qt.AltModifier) && !searchField.activeFocus) {
             toggleFavorite(null); event.accepted = true
+        } else if (event.key === Qt.Key_F5 && !gamesProcess.running) {
+            loadGames(); event.accepted = true
         } else if (event.key === Qt.Key_B && (event.modifiers & Qt.AltModifier)) {
             launcher.bigPictureMode = !launcher.bigPictureMode
             if (launcher.bigPictureMode) bpView.forceActiveFocus()
@@ -240,17 +243,18 @@ Rectangle {
 
     function navigateLeft() {
         if (orientation === "horizontal" && selectedIndex > 0) selectedIndex--
-        else if (orientation === "vertical" && selectedIndex % gridColumns > 0) selectedIndex--
+        else if (orientation === "vertical" && selectedIndex > 0) selectedIndex--
     }
     function navigateRight() {
         if (orientation === "horizontal" && selectedIndex < filteredGames.length - 1) selectedIndex++
-        else if (orientation === "vertical" && selectedIndex % gridColumns < gridColumns - 1 && selectedIndex < filteredGames.length - 1) selectedIndex++
+        else if (orientation === "vertical" && selectedIndex < filteredGames.length - 1) selectedIndex++
     }
     function navigateUp() {
         if (orientation === "vertical" && selectedIndex >= gridColumns) selectedIndex -= gridColumns
     }
     function navigateDown() {
         if (orientation === "vertical" && selectedIndex + gridColumns < filteredGames.length) selectedIndex += gridColumns
+        else if (orientation === "vertical" && selectedIndex < filteredGames.length - 1) selectedIndex = filteredGames.length - 1
     }
     function launchSelectedGame() {
         if (filteredGames.length === 0) return
@@ -401,9 +405,17 @@ Rectangle {
                     else launcher.forceActiveFocus()
                     break
                 case "up":
-                    navigateSource("up")
+                    if (orientation === "vertical") navigateUp()
+                    else navigateSource("up")
                     break
                 case "down":
+                    if (orientation === "vertical") navigateDown()
+                    else navigateSource("down")
+                    break
+                case "source_prev":
+                    navigateSource("up")
+                    break
+                case "source_next":
                     navigateSource("down")
                     break
                 case "favorite":
@@ -777,6 +789,7 @@ Rectangle {
                     spacing: launcher.spacing
                     clip: true
                     model: filteredGames
+                    cacheBuffer: itemWidth
                     highlightRangeMode: ListView.StrictlyEnforceRange
                     highlightMoveDuration: 300
                     preferredHighlightBegin: width / 2 - itemWidth / 2
@@ -798,7 +811,7 @@ Rectangle {
                         width: itemWidth; height: itemHeight
                         gameName: modelData.name || "Unknown"
                         gameImage: modelData.image || ""
-                        gameImageAnimated: modelData.image_animated || ""
+                        gameImageAnimated: Math.abs(index - selectedIndex) <= 1 ? (modelData.image_animated || "") : ""
                         gameCategory: modelData.category || ""
                         gameSource: modelData.source || ""
                         isFavorite: modelData.favorite || false
@@ -900,19 +913,21 @@ Rectangle {
 
                 GridView {
                     id: gamesCarouselV
-                    Layout.preferredWidth: (itemWidth * gridColumns) + (spacing * (gridColumns - 1))
+                    Layout.preferredWidth: (itemWidth + spacing) * gridColumns
                     Layout.fillHeight: true
                     Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
                     cellWidth: itemWidth + spacing; cellHeight: itemHeight + spacing
                     clip: true; model: filteredGames
+                    interactive: false
+                    cacheBuffer: itemHeight
                     currentIndex: selectedIndex
                     onCurrentIndexChanged: selectedIndex = currentIndex
 
                     MouseArea {
                         anchors.fill: parent; propagateComposedEvents: true; focus: false
                         onWheel: (wheel) => {
-                            if (wheel.angleDelta.y > 0) navigateUp()
-                            else navigateDown()
+                            if (wheel.angleDelta.y > 0) navigateLeft()
+                            else navigateRight()
                             launcher.forceActiveFocus(); wheel.accepted = true
                         }
                         onClicked: (mouse) => { launcher.forceActiveFocus(); mouse.accepted = false }
@@ -922,7 +937,7 @@ Rectangle {
                         width: itemWidth; height: itemHeight
                         gameName: modelData.name || "Unknown"
                         gameImage: modelData.image || ""
-                        gameImageAnimated: modelData.image_animated || ""
+                        gameImageAnimated: Math.abs(index - selectedIndex) <= gridColumns ? (modelData.image_animated || "") : ""
                         gameCategory: modelData.category || ""
                         gameSource: modelData.source || ""
                         isFavorite: modelData.favorite || false

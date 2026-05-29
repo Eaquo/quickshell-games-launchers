@@ -10,14 +10,15 @@
 
 # Launcher position on screen
 #   Values: center | top | bottom | left | right
-position = "bottom"
+position = "center"
 
 # Card layout direction
 #   Values: horizontal | vertical
 orientation = "horizontal"
 
 # Grid size [columns, rows]
-grid_size = [3, 1]
+#   Note: rows is only used in vertical orientation — ignored in horizontal (always 1 row)
+grid_size = [5, 5]
 
 # Card dimensions in pixels
 #   Recommended: 400×200 for horizontal · 220×300 for vertical / left / right
@@ -81,7 +82,7 @@ enabled = true
 # Steam library folders — add as many as you have
 library_paths = [
     "~/.local/share/Steam/steamapps",
-    "~/.var/app/com.valvesoftware.Steam/data/Steam/steamapps",  # Flatpak
+    "~/.var/app/com.valvesoftware.Steam/data/Steam/steamapps", # Flatpak
     # "~/GameDisk/steam/steamapps",                              # Custom drive
 ]
 
@@ -94,10 +95,10 @@ enabled      = true
 config_paths = ["~/.config/heroic"]
 
 # Which Heroic stores to include
-scan_epic     = true  # Epic Games Store
-scan_gog      = true  # GOG
-scan_amazon   = true  # Amazon Prime Gaming
-scan_sideload = true  # Games added manually in Heroic
+scan_epic     = true # Epic Games Store
+scan_gog      = true # GOG
+scan_amazon   = true # Amazon Prime Gaming
+scan_sideload = true # Games added manually in Heroic
 
 
 # ── LUTRIS ───────────────────────────────────────────────────────────────────
@@ -120,15 +121,7 @@ games_only = false
 exclude_categories = ["desktop"]
 
 # Hide games whose name contains any of these words (case-insensitive)
-exclude_keywords = [
-    "Launcher",
-    "Manager",
-    "Runtime",
-    "SDK",
-    "Tool",
-    "Aimlabs",
-    "Steam",
-]
+exclude_keywords = ["Launcher", "Manager", "Runtime", "SDK", "Tool", "Aimlabs", "Steam"]
 
 
 # ── STEAMGRIDDB ──────────────────────────────────────────────────────────────
@@ -139,7 +132,7 @@ exclude_keywords = [
 [steamgriddb]
 
 enabled = true
-api_key = ""   # ← paste your key here
+api_key = "66785c05faf41a94b340ab703aeabdd1" # ← paste your key here
 
 # Image type to fetch
 #   Values: grid (portrait cover)  |  hero (wide banner)  |  logo  |  icon
@@ -200,6 +193,6 @@ box_art_dir = "~/.config/quickshell/game-launcher/box-art"
 # ── Add entries below — copy the block to add more ───────────────────────
 
 [[manual.entries]]
-title         = "Game Library"
+title          = "Game Library"
 launch_command = "~/.config/quickshell/game-launcher/modules/service/run_in_terminal.sh python3 ~/.config/quickshell/game-launcher/modules/service/list_games.py"
-path_box_art  = "library.png"
+path_box_art   = "library.png"
