@@ -10,7 +10,7 @@
 
 # Launcher position on screen
 #   Values: center | top | bottom | left | right
-position = "center"
+position = "bottom"
 
 # Card layout direction
 #   Values: horizontal | vertical
@@ -18,7 +18,7 @@ orientation = "horizontal"
 
 # Grid size [columns, rows]
 #   Note: rows is only used in vertical orientation — ignored in horizontal (always 1 row)
-grid_size = [5, 5]
+grid_size = [3, 1]
 
 # Card dimensions in pixels
 #   Recommended: 400×200 for horizontal · 220×300 for vertical / left / right
@@ -132,7 +132,7 @@ exclude_keywords = ["Launcher", "Manager", "Runtime", "SDK", "Tool", "Aimlabs", 
 [steamgriddb]
 
 enabled = true
-api_key = "66785c05faf41a94b340ab703aeabdd1" # ← paste your key here
+api_key = "" # ← paste your key here
 
 # Image type to fetch
 #   Values: grid (portrait cover)  |  hero (wide banner)  |  logo  |  icon
