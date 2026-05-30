@@ -111,113 +111,34 @@ ShellRoot {
                     config: root.config
                     screenW: launcherWindow.screen.width
                     screenH: launcherWindow.screen.height
-                    x: implicitWidth - root.config.display.item_width                    
 
-                    // Position dynamique selon config.display.position
-                    anchors {
-                        // Vertical positioning
-                        top: (root.config.display.position === "top") ? parent.top : undefined
-                        topMargin: (root.config.display.position === "top")
-                            ? (root.launcherVisible ? 40 : height)
-                            : root.config.display.item_width
-
-                        bottom: (root.config.display.position === "bottom") ? parent.bottom : undefined
-                        bottomMargin: (root.config.display.position === "bottom")
-                            ? (root.launcherVisible ? 10 : -height)
-                            : 0
-
-                        left: (root.config.display.position === "left") ? parent.left : undefined
-                        leftMargin: (root.config.display.position === "left")
-                            ? (root.launcherVisible ? 10 : -100)
-                            : x + root.config.display.item_width
-
-                        right: (root.config.display.position === "right") ? parent.right : undefined
-                        rightMargin: (root.config.display.position === "right")
-                            ? (root.launcherVisible ? 10 : height)
-                            : x
-
-                        verticalCenter: (root.config.display.position === "center" ||
-                                        root.config.display.position === "left" ||
-                                        root.config.display.position === "right")
-                            ? parent.verticalCenter
-                            : undefined
-
-
-
-                        horizontalCenter: (root.config.display.position === "center" ||
-                                          root.config.display.position === "top" ||
-                                          root.config.display.position === "bottom")
-                            ? parent.horizontalCenter
-                            : undefined
+                    x: {
+                        const pos = root.config.display.position
+                        const sw  = launcherWindow.screen.width
+                        if (launcher.bigPictureMode)  return 0
+                        if (pos === "left")            return root.launcherVisible ? 10 : -width
+                        if (pos === "right")           return root.launcherVisible ? sw - width - 10 : sw
+                        return (sw - width) / 2   // center | top | bottom
                     }
 
-                    visible: true  // Always visible but animated
+                    y: {
+                        const pos = root.config.display.position
+                        const sh  = launcherWindow.screen.height
+                        const mid = (sh - height) / 2
+                        if (launcher.bigPictureMode)  return 0
+                        if (pos === "top")             return root.launcherVisible ? 10 : -height
+                        if (pos === "bottom")          return root.launcherVisible ? sh - height - 10 : sh
+                        return mid   // left | right | center
+                    }
+
+                    visible: true
                     opacity: root.launcherVisible ? 1.0 : 0.0
 
-                // Animations avec transitions fluides
-                Behavior on anchors.bottomMargin {
-                    NumberAnimation {
-                        duration: root.config.animations.duration_ms
-                        easing.type: Easing.OutCubic
-                    }
-                }
+                    Behavior on x       { NumberAnimation { duration: root.config.animations.duration_ms; easing.type: Easing.OutCubic } }
+                    Behavior on y       { NumberAnimation { duration: root.config.animations.duration_ms; easing.type: Easing.OutCubic } }
+                    Behavior on opacity { NumberAnimation { duration: root.config.animations.duration_ms; easing.type: Easing.OutCubic } }
 
-                Behavior on anchors.topMargin {
-                    NumberAnimation {
-                        duration: root.config.animations.duration_ms
-                        easing.type: Easing.OutCubic
-                    }
-                }
-
-                Behavior on anchors.leftMargin {
-                    NumberAnimation {
-                        duration: root.config.animations.duration_ms
-                        easing.type: Easing.OutCubic
-                    }
-                }
-
-                Behavior on anchors.rightMargin {
-                    NumberAnimation {
-                        duration: root.config.animations.duration_ms
-                        easing.type: Easing.OutCubic
-                    }
-                }
-
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: root.config.animations.duration_ms
-                        easing.type: Easing.OutCubic
-                    }
-                }
-
-                onCloseRequested: {
-                    root.launcherVisible = false
-                }
-
-                states: State {
-                    name: "bigpicture"
-                    when: launcher.bigPictureMode
-                    AnchorChanges {
-                        target: launcher
-                        anchors.top: rootItem.top
-                        anchors.left: rootItem.left
-                        anchors.right: rootItem.right
-                        anchors.bottom: rootItem.bottom
-                        anchors.horizontalCenter: undefined
-                        anchors.verticalCenter: undefined
-                    }
-                    PropertyChanges {
-                        target: launcher
-                        anchors.topMargin: 0
-                        anchors.bottomMargin: 0
-                        anchors.leftMargin: 0
-                        anchors.rightMargin: 0
-                    }
-                }
-
-                transitions: Transition {
-                    AnchorAnimation { duration: 280; easing.type: Easing.OutCubic }
-                }
+                    onCloseRequested: root.launcherVisible = false
                 }  // End GameLauncher
             }  // End rootItem
         }  // End PanelWindow

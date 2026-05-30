@@ -20,7 +20,7 @@ Rectangle {
 
     // Config values
     property string orientation: config?.display?.orientation ?? "horizontal"
-    property int gridColumns: config?.display?.grid_size?.[0] ?? 4
+    property int gridColumns: config?.display?.grid_size?.[0] ?? 1
     property int gridRows: config?.display?.grid_size?.[1] ?? 3
     property int effectiveRows: orientation === "horizontal" ? 1 : gridRows
     property int itemWidth: config?.display?.item_width ?? 200
@@ -38,8 +38,11 @@ Rectangle {
         return n
     }
 
-    width: bigPictureMode ? screenW : sidebarWidth + spacing + (itemWidth * gridColumns) + (spacing * (gridColumns + 1))
-    height: bigPictureMode ? screenH : (itemHeight * effectiveRows) + (spacing * (effectiveRows + 1)) + 60 + 44 + spacing
+    width: bigPictureMode ? screenW
+        : orientation === "vertical"
+            ? sidebarWidth + spacing * 3 + (itemWidth + spacing) * gridColumns + 50
+            : sidebarWidth + spacing + (itemWidth * gridColumns) + (spacing * (gridColumns + 1))
+    height: bigPictureMode ? screenH : (itemHeight * effectiveRows) + (spacing * (effectiveRows + 1)) + 60 + (2 * spacing)
 
     focus: true
     activeFocusOnTab: true
@@ -70,7 +73,12 @@ Rectangle {
         opacity: 0.5
     }
 
+    onGridColumnsChanged: console.log("→ gridColumns =", gridColumns)
+    onGridRowsChanged:    console.log("→ gridRows =", gridRows)
+    onOrientationChanged: console.log("→ orientation =", orientation)
+
     Component.onCompleted: {
+        console.log("GameLauncher ready — gridColumns:", gridColumns, "gridRows:", gridRows, "orientation:", orientation)
         launcher.forceActiveFocus()
         loadGames()
         gamepadService.running = true
@@ -220,7 +228,7 @@ Rectangle {
             gamesProcess.output = ""
         }
     }
-    
+
     function loadGames() { launcher.isLoading = true; gamesProcess.running = true }
 
     function filterGames() {
@@ -377,11 +385,11 @@ Rectangle {
         }
     }
 }
- 
+
     // ── Handler des actions manette ────────────────────────────────────────────
     QtObject {
         id: gamepadHandler
-    
+
         function handle(action) {
             switch(action) {
                 case "left":
@@ -914,6 +922,8 @@ Rectangle {
                 GridView {
                     id: gamesCarouselV
                     Layout.preferredWidth: (itemWidth + spacing) * gridColumns
+                    Layout.maximumWidth: (itemWidth + spacing) * gridColumns
+                    Layout.maximumHeight: (itemHeight + spacing) * effectiveRows
                     Layout.fillHeight: true
                     Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
                     cellWidth: itemWidth + spacing; cellHeight: itemHeight + spacing
