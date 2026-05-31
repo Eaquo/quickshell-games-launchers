@@ -1,3 +1,4 @@
 # Python 3.11+ required (uses built-in tomllib)
 vdf>=3.4         # Steam shortcuts.vdf parsing (non-Steam games)
+tomlkit>=0.11    # Config writer — preserves comments when saving config.toml
 evdev>=1.6       # Gamepad support (optional, Linux only)
