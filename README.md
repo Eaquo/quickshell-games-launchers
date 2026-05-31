@@ -1,12 +1,15 @@
 <div align="center">
 
-# Quickshell Launchers
+# Quickshell Game Launcher
 
-**Sleek game launchers for Hyprland with pywal/wallust integration**
+**Sleek game launcher for Hyprland with pywal/wallust & matugen theming**
 
 [![Stars](https://img.shields.io/github/stars/Eaquo/quickshell-games-launchers?style=for-the-badge&logo=github&color=DEA6FF&labelColor=302D41)](https://github.com/Eaquo/quickshell-games-launchers/stargazers)
 [![Hyprland](https://img.shields.io/badge/Hyprland-compatible-89B4FA?style=for-the-badge&logo=wayland&logoColor=white&labelColor=302D41)](https://hyprland.org)
 [![AUR](https://img.shields.io/badge/AUR-quickshell--games--launchers--git-F9E2AF?style=for-the-badge&logo=archlinux&logoColor=white&labelColor=302D41)](https://aur.archlinux.org/packages/quickshell-games-launchers-git)
+
+[![Wallust](https://img.shields.io/badge/Wallust-pywal%20theming-CBA6F7?style=for-the-badge&logoColor=white&labelColor=302D41)](https://codeberg.org/explosion-mental/wallust)
+[![Matugen](https://img.shields.io/badge/Matugen-Material%20You-89DCEB?style=for-the-badge&logoColor=white&labelColor=302D41)](https://github.com/InioX/matugen)
 
 <br>
 
@@ -29,36 +32,28 @@ https://github.com/user-attachments/assets/703e48dd-86d1-49cb-8bc8-1fe45b89e9f5
 </tr>
 </table>
 
-[**Features**](#-features) · [**Install**](#%EF%B8%8F-installation) · [**Configuration**](#%EF%B8%8F-configuration) · [**Big Picture**](#-big-picture-mode) · [**Gamepad**](#-gamepad)
+[**Features**](#-features) · [**Install**](#%EF%B8%8F-installation) · [**Configuration**](#%EF%B8%8F-configuration) · [**Theming**](#-theming) · [**Big Picture**](#-big-picture-mode) · [**Gamepad**](#-gamepad)
+
+<sub>🎨 Theming — [Wallust / pywal](#wallust--pywal) · [Matugen Material You](#matugen-material-you)</sub>
 
 </div>
 
 ---
 
-## 📦 Projects
-
-### 🎮 Game Launcher
-
-Game launcher with multi-platform support and a sleek animated interface.
-
-![Game Launcher](Readme/asset/image_2.png)
-
 ## ✨ Features
 
-- 🎯 Support for Steam, non-Steam games, Heroic (Epic/GOG/Amazon), and manual entries
-- 🎮 Automatic detection of non-Steam games added to Steam (via shortcuts.vdf)
-- 🖼️ Automatic cover art from Steam CDN / SteamGridDB (animated WebP/WebM heroes)
-- 🚀 Animated launch overlay — cover expands fullscreen with game logo and "Start Game◦◦◦" indicator
-- 📺 **Big Picture mode** — fullscreen Steam Deck-style view with hero image, stats panel, and game strip
-- 🕹️ Gamepad support (navigate, launch, favorites, Big Picture toggle via X button)
-- 🏷️ Platform badges and categories
-- ⭐ Favorites system
-- 🆕 NEW/RECENT indicators
-- 🎨 Automatic pywal/wallust theming
-- 🌍 i18n — auto-detected language (fr / en / es / ru / ja)
+- 🎯 Steam, Heroic (Epic / GOG / Amazon / Sideload), Lutris, and manual entries
+- 🎮 Non-Steam shortcuts detection via `shortcuts.vdf`
+- 🖼️ Animated cover art from Steam CDN / SteamGridDB (WebP heroes)
+- 🚀 Animated launch overlay — cover expands fullscreen with logo + start indicator
+- 📺 **Big Picture mode** — fullscreen Steam Deck-style view with hero, stats, and game strip
+- 🕹️ Gamepad support — navigate, launch, favorites, Big Picture via X button
+- ⚙️ **In-app config panel** — live settings editor with 9 sections, no restart needed
+- 🎨 **Wallust / pywal** theming — auto accent colors from your wallpaper
+- 🎨 **Matugen** theming — Material You palette, mutually exclusive with wallust
+- 🌍 **i18n** — auto-detected language: fr / en / es / ru / ja
+- ⭐ Favorites, 🆕 NEW/RECENT badges, 🔍 live search
 - ⌨️ Keyboard, scroll wheel, and gamepad navigation
-- 🔍 Live search
-- 📚 Library view with installation paths
 
 ## ⌨️ Controls
 
@@ -69,53 +64,50 @@ Game launcher with multi-platform support and a sleek animated interface.
 | `Enter` | Launch selected game |
 | `Double-click` | Launch a game |
 | `Esc` | Close |
-| `Scroll wheel` | Navigate |
+| `Scroll wheel` | Scroll through games |
 | `ALT + F` | Toggle favorite |
 | `ALT + B` | Toggle Big Picture mode |
+| `F5` | Refresh game list |
 
 ---
 
 ## 📺 Big Picture Mode
 
-<!-- Add your screenshot here:
-![Big Picture Mode](asset/Bigmode.png)
--->
-
-Full-screen Steam Deck-style interface with:
-- **Hero image** — wide banner (3840×1240 from Steam CDN, or SteamGridDB hero)
-- **Stats panel** — playtime, last session, install size, last update (hidden if unavailable)
-- **Game strip** — horizontal scrollable list at the bottom
-- **Launch overlay** — logo + "Start Game◦◦◦" animation, launcher closes after 4 s
+Full-screen Steam Deck-style interface:
+- **Hero image** — wide banner (from Steam CDN or SteamGridDB)
+- **Stats panel** — playtime, last session, install size, last update
+- **Game strip** — scrollable list at the bottom
+- **Launch overlay** — logo + "Start Game◦◦◦" animation
 
 ## 🎮 Gamepad
 
 | Button | Action |
 |--------|--------|
-| ![](https://img.shields.io/badge/D--pad-grey?style=flat-square) | Navigate the grid |
-| ![](https://img.shields.io/badge/A-1d7b36?style=flat-square&logo=xbox&logoColor=white) | Launch selected game |
-| ![](https://img.shields.io/badge/X-1a4fa8?style=flat-square&logo=xbox&logoColor=white) | Toggle Big Picture mode |
-| ![](https://img.shields.io/badge/SELECT-2c3e50?style=flat-square&logo=xbox&logoColor=white) | Toggle favorite |
-| ![](https://img.shields.io/badge/B-c0392b?style=flat-square&logo=xbox&logoColor=white) | Close |
+| D-pad | Navigate the grid |
+| A | Launch selected game |
+| X | Toggle Big Picture mode |
+| SELECT | Toggle favorite |
+| B | Close |
 
 ---
 
 ## 📋 Prerequisites
 
 ```bash
-# Arch Linux
+# Arch Linux — core
 sudo pacman -S python qt6-declarative
 
-# VDF library for Steam non-Steam games
-pip install vdf
+# Python dependencies
+pip install vdf tomlkit
 
-# Quickshell
+# Quickshell (AUR)
 yay -S quickshell-git
-paru -S quickshell-git
 
-# Font Awesome 7 (for icons)
+# Font Awesome 7 (icons)
 yay -S ttf-font-awesome-7
-paru -S ttf-font-awesome-7
 ```
+
+---
 
 ## 🛠️ Installation
 
@@ -125,59 +117,58 @@ paru -S quickshell-games-launchers-git
 # or
 yay -S quickshell-games-launchers-git
 ```
-Run Terminal:
 ```bash
 quickshell-game
 ```
 
 ### From source
 ```bash
-git clone https://github.com/Eaquo/Quickshell-Games.git
-cp -r Quickshell-Games/game-launcher ~/.config/quickshell/game-launcher
+git clone https://github.com/Eaquo/quickshell-games-launchers.git
+cp -r quickshell-games-launchers/game-launcher ~/.config/quickshell/game-launcher
 ```
 
 ### Hyprland keybind
 
-In `~/.config/hypr/hyprland.conf`:
+Add to `~/.config/hypr/hyprland.conf`:
 ```conf
 bind = SUPER, G, exec, ~/.config/quickshell/game-launcher/toggle.sh
 ```
-<!-- Or
-```conf
-bind = SUPER, G, exec, quickshell-game
-``` -->
 
 ---
 
 ## ⚙️ Configuration
 
-Everything lives in `~/.config/quickshell/game-launcher/config.toml`.
+All settings live in `~/.config/quickshell/game-launcher/config.toml`.  
+Most can also be changed live from the **in-app config panel** (gear button, bottom-right of the sidebar).
 
 <details>
 <summary><b>Display</b></summary>
 
 ```toml
 [display]
-position = "bottom"        # center, top, bottom
-orientation = "horizontal"
-grid_size = [3, 1]         # [columns, rows]
-item_width = 400
+position    = "bottom"       # center | top | bottom | left | right
+orientation = "horizontal"   # horizontal | vertical
+grid_size   = [3, 1]         # [columns, rows]
+item_width  = 400
 item_height = 200
-spacing = 20
+spacing     = 20
 ```
 </details>
 
 <details>
-<summary><b>Appearance & wallust</b></summary>
+<summary><b>Appearance</b></summary>
 
 ```toml
 [appearance]
-use_wallust = true
+# Wallust / pywal — mutually exclusive with use_matugen
+use_wallust  = true
 wallust_path = "~/.cache/wal/wal.json"
-show_game_names = true
-show_categories = true
-show_playtime = true
-blur_background = true
+
+# Matugen (Material You) — mutually exclusive with use_wallust
+use_matugen         = false
+matugen_colors_path = "~/.cache/matugen/game_launcher_colors.json"
+
+blur_background    = true
 background_opacity = 0.85
 ```
 </details>
@@ -187,9 +178,17 @@ background_opacity = 0.85
 
 ```toml
 [behavior]
-sort_by = "recent"           # recent, alphabetical, playtime
+sort_by              = "recent"   # recent | name | playtime
 show_favorites_first = true
-close_on_launch = true
+close_on_launch      = true
+
+# Tab shown on startup: 0 = All, 1 = Steam, 2 = Heroic, etc.
+default_source_index = 0
+# Remember the last active tab between sessions
+remember_source      = false
+
+# Open directly in Big Picture mode on startup
+start_in_bigpicture  = false
 ```
 </details>
 
@@ -198,9 +197,7 @@ close_on_launch = true
 
 ```toml
 [animations]
-enabled = true
-duration_ms = 300
-ease_type = "OutCubic"
+duration_ms = 300   # open/close animation duration in milliseconds
 ```
 </details>
 
@@ -219,29 +216,6 @@ library_paths = [
 </details>
 
 <details>
-<summary><b>SteamGridDB</b> (optional but recommended for animated covers)</summary>
-
-```toml
-[steamgriddb]
-enabled = true
-api_key = "your_key_here"   # free account at steamgriddb.com
-
-# "hero" → wide banner (1920×620) | "grid" → vertical cover (600×900) | "logo" → transparent PNG
-image_type = "hero"
-prefer_animated = true
-sort_by_likes = true
-min_likes = 0
-
-# Performance
-parallel_requests = true
-max_workers = 12
-request_timeout = 3        # seconds
-
-cache_ttl_hours = 48
-```
-</details>
-
-<details>
 <summary><b>Heroic</b> (Epic / GOG / Amazon)</summary>
 
 ```toml
@@ -251,10 +225,51 @@ config_paths = [
     "~/.config/heroic",
     "~/.var/app/com.heroicgameslauncher.hgl/config/heroic",  # Flatpak
 ]
-scan_epic = true
-scan_gog = true
-scan_amazon = true
+scan_epic     = true
+scan_gog      = true
+scan_amazon   = true
 scan_sideload = true
+```
+</details>
+
+<details>
+<summary><b>Lutris</b></summary>
+
+```toml
+[lutris]
+enabled = true
+db_path = "~/.local/share/lutris/pga.db"
+```
+</details>
+
+<details>
+<summary><b>SteamGridDB</b> (optional — animated covers)</summary>
+
+Get a free API key at [steamgriddb.com/profile/preferences/api](https://www.steamgriddb.com/profile/preferences/api).
+
+```toml
+[steamgriddb]
+enabled  = true
+api_key  = "your_key_here"
+
+# "hero" → wide banner  |  "grid" → portrait cover  |  "logo"  |  "icon"
+image_type      = "hero"
+prefer_animated = true
+fallback_to_steam = true
+
+sort_by_likes = true
+min_likes     = 0
+
+# Content filters
+nsfw      = false
+humor     = false
+epilepsy  = false
+
+# Performance
+parallel_requests = true
+max_workers       = 12
+request_timeout   = 3    # seconds
+cache_ttl_hours   = 48
 ```
 </details>
 
@@ -263,24 +278,134 @@ scan_sideload = true
 
 ```toml
 [filtering]
-games_only = false
+games_only         = false
 exclude_categories = ["desktop"]
-exclude_keywords = ["Launcher", "Manager", "Runtime", "SDK", "Tool"]
+exclude_keywords   = ["Launcher", "Manager", "Runtime", "SDK", "Tool"]
 ```
 </details>
 
 <details>
 <summary><b>Manual games</b></summary>
 
+Drop cover images in the `box-art/` folder, then reference them by filename:
+
 ```toml
+[manual]
 box_art_dir = "~/.config/quickshell/game-launcher/box-art"
 
-[[entries]]
-title = "My App"
-launch_command = "my-command"
-path_box_art = "cover.png"   # relative to box_art_dir
+[[manual.entries]]
+title          = "My Game"
+launch_command = "my-launch-command"
+path_box_art   = "cover.png"
 ```
 </details>
+
+---
+
+## 🎨 Theming
+
+The launcher supports two color backends — **only one can be active at a time**.  
+Switch between them in the config panel (Appearance section) or directly in `config.toml`.
+
+### Wallust / pywal
+
+```toml
+[appearance]
+use_wallust  = true
+wallust_path = "~/.cache/wal/wal.json"
+```
+
+Wallust runs automatically when your wallpaper changes. No extra setup needed.
+
+### Matugen (Material You)
+
+Matugen generates a Material You palette from your wallpaper.
+
+#### 1 — Install matugen
+
+```bash
+yay -S matugen-bin
+# or
+paru -S matugen-bin
+```
+
+#### 2 — Add the launcher template
+
+Create `~/.config/matugen/templates/game_launcher.json`:
+
+```json
+{
+  "special": {
+    "background": "{{colors.background.default.hex}}",
+    "foreground": "{{colors.on_background.default.hex}}",
+    "cursor":     "{{colors.primary.default.hex}}"
+  },
+  "colors": {
+    "color0":  "{{colors.surface_container_lowest.default.hex}}",
+    "color1":  "{{colors.error.default.hex}}",
+    "color2":  "{{colors.secondary.default.hex}}",
+    "color3":  "{{colors.tertiary.default.hex}}",
+    "color4":  "{{colors.primary_container.default.hex}}",
+    "color5":  "{{colors.primary.default.hex}}",
+    "color6":  "{{colors.secondary_container.default.hex}}",
+    "color7":  "{{colors.on_surface.default.hex}}",
+    "color8":  "{{colors.surface_variant.default.hex}}",
+    "color9":  "{{colors.on_error_container.default.hex}}",
+    "color10": "{{colors.on_secondary_container.default.hex}}",
+    "color11": "{{colors.on_tertiary_container.default.hex}}",
+    "color12": "{{colors.on_primary_container.default.hex}}",
+    "color13": "{{colors.inverse_primary.default.hex}}",
+    "color14": "{{colors.on_secondary.default.hex}}",
+    "color15": "{{colors.on_background.default.hex}}"
+  }
+}
+```
+
+#### 3 — Register the template in `~/.config/matugen/config.toml`
+
+```toml
+[config]
+reload_apps = false
+
+[templates.game_launcher]
+input_path  = "~/.config/matugen/templates/game_launcher.json"
+output_path = "~/.cache/matugen/game_launcher_colors.json"
+```
+
+#### 4 — Enable in `config.toml`
+
+```toml
+[appearance]
+use_wallust  = false
+use_matugen  = true
+matugen_colors_path = "~/.cache/matugen/game_launcher_colors.json"
+```
+
+#### 5 — Generate colors
+
+```bash
+# From a wallpaper image (picks most dominant color automatically)
+matugen image /path/to/wallpaper.jpg --source-color-index 0
+
+# From a hex color directly
+matugen color hex "#7c3aed"
+```
+
+#### Optional — Auto-run on wallpaper change (Hyprland + swww)
+
+Add to your `hyprland.conf`:
+```conf
+exec-once = swww-daemon
+```
+
+Create a wallpaper script `~/.config/hypr/set_wallpaper.sh`:
+```bash
+#!/bin/bash
+swww img "$1" --transition-type fade
+matugen image "$1" --source-color-index 0
+```
+
+Then bind it or call it from your dotfiles.
 
 ---
 
@@ -290,10 +415,10 @@ path_box_art = "cover.png"   # relative to box_art_dir
 # Launch via Quickshell
 quickshell -c ~/.config/quickshell/game-launcher/shell.qml
 
-# Or use the toggle script (recommended)
+# Or via the toggle script
 ~/.config/quickshell/game-launcher/toggle.sh
 
-# Test the backend (should output a JSON list of your games)
+# Test the backend (outputs a JSON list of your games)
 python3 ~/.config/quickshell/game-launcher/modules/service/backend.py
 
 # View the full library with paths
@@ -307,45 +432,38 @@ python3 ~/.config/quickshell/game-launcher/modules/service/list_games.py
 ```
 game-launcher/
 ├── shell.qml                      # Quickshell entry point
-├── config.toml                    # Main config
-├── requirements.txt
+├── config.toml                    # Main configuration
 ├── toggle.sh                      # Toggle show/hide
 ├── modules/
-│   ├── GameLauncher.qml           # Main component + grid
+│   ├── GameLauncher.qml           # Main grid + sidebar + keyboard handling
 │   ├── GameCard.qml               # Individual game card
 │   ├── BigPictureView.qml         # Big Picture fullscreen mode
-│   ├── LaunchOverlay.qml          # Animated launch overlay (normal mode)
-│   ├── I18n.qml                   # i18n strings (fr/en/es/ru/ja)
+│   ├── LaunchOverlay.qml          # Fullscreen launch animation
+│   ├── ConfigPanel.qml            # In-app config editor (9 sections)
+│   ├── I18n.qml                   # Translations: fr / en / es / ru / ja
 │   └── service/
-│       ├── backend.py             # Steam/Heroic scan, SteamGridDB, TOML
-│       ├── gamepad.py             # Gamepad support
-│       ├── list_games.py          # Library display
-│       └── py_vdf_list.py
-├── box-art/                       # Manual covers
-├── cache/                         # SteamGridDB image cache
-└── Readme/
-    ├── README.md
-    ├── README_en.md
-    └── asset/
-        ├── Quickshell-game.mp4
-        ├── image.png
-        └── image_2.png
+│       ├── backend.py             # Game scanning, colors, SteamGridDB
+│       ├── config_writer.py       # Writes config.toml preserving comments
+│       ├── gamepad.py             # Gamepad / controller support
+│       ├── list_games.py          # Library display utility
+│       └── fonction/
+│           ├── scanners.py        # Steam / Heroic / Lutris scanners
+│           ├── sgdb.py            # SteamGridDB client
+│           └── image_cache.py     # Cover art cache manager
+├── box-art/                       # Manual game covers
+└── cache/                         # SteamGridDB image cache
 ```
 
 ---
 
-## 🎯 Technical Features
+## 🎯 Technical Notes
 
-- **QML/Qt6** — Modern interface with MultiEffect for animations
-- **Python 3.11+** — Backend using tomllib
-- **Layer Masking** — Native rounded corners on images
-- **Horizontal Carousel** — Smooth navigation with animations
-- **Animated Launch Overlay** — Fullscreen card expansion on game launch
-- **ACF Parsing** — Steam library path extraction
-- **VDF Binary Parsing** — Non-Steam game detection via shortcuts.vdf
-- **AppID Conversion** — Correct Steam AppID conversion for launching
-- **JSON Parsing** — Heroic Games Launcher support
-- **Gamepad Input** — Controller navigation via gamepad.py
+- **QML / Qt6** — declarative UI with Quickshell layer-shell integration
+- **Python 3.11+** — backend with `tomllib` (stdlib) + `tomlkit` for comment-preserving writes
+- **ACF parsing** — Steam library path extraction from `libraryfolders.vdf`
+- **VDF binary parsing** — non-Steam game detection via `shortcuts.vdf`
+- **Parallel cover fetching** — SteamGridDB images downloaded concurrently
+- **Binding-safe controls** — `signal changed(T v)` pattern prevents QML binding breaks
 
 ---
 
@@ -356,7 +474,7 @@ game-launcher/
 
 ```bash
 quickshell -c ~/.config/quickshell/game-launcher/shell.qml
-# Check for errors in the terminal
+# Read the error output in the terminal
 ```
 </details>
 
@@ -365,25 +483,37 @@ quickshell -c ~/.config/quickshell/game-launcher/shell.qml
 
 ```bash
 ls ~/.local/share/Steam/steamapps/*.acf
-# Make sure the path in config.toml matches
+# Make sure the path in config.toml [steam] library_paths matches
 ```
 </details>
 
 <details>
 <summary><b>SteamGridDB covers not loading</b></summary>
 
-- Check that your API key is correct in config.toml
-- Look at `cache/image_cache.json` to see resolved URLs
-- Increase `request_timeout` if your connection is slow
+- Verify your API key in `config.toml`
+- Check `cache/image_cache.json` to see resolved URLs
+- Increase `request_timeout` for slow connections
 </details>
 
 <details>
-<summary><b>Error `No module named 'toml'`</b></summary>
+<summary><b>Matugen colors not applying</b></summary>
 
 ```bash
-pip install toml
-# or
-sudo pacman -S python-toml
+# Check that the output file was generated
+cat ~/.cache/matugen/game_launcher_colors.json
+
+# Re-run matugen manually
+matugen image /path/to/wallpaper.jpg --source-color-index 0
+
+# Make sure use_matugen = true and use_wallust = false in config.toml
+```
+</details>
+
+<details>
+<summary><b>Missing Python module</b></summary>
+
+```bash
+pip install vdf tomlkit
 ```
 </details>
 
@@ -391,18 +521,13 @@ sudo pacman -S python-toml
 
 ## 🤝 Contributing
 
-Contributions are welcome! Feel free to:
-- Report bugs
-- Suggest improvements
-- Improve documentation
-
-Especially useful: edge cases with Heroic or non-standard Steam libraries.
+Contributions welcome — bug reports, feature suggestions, and edge-case fixes (unusual Steam setups, Heroic Flatpak paths, etc.) are especially appreciated.
 
 ---
 
 ## 📝 License
 
-MIT License — Free to use and modify
+MIT License — free to use and modify.
 
 ---
 
@@ -410,11 +535,12 @@ MIT License — Free to use and modify
 
 Inspired by [caelestia-dots/shell](https://github.com/caelestia-dots/shell)
 
-- **[Quickshell](https://github.com/outfoxxed/quickshell)** — Qt6/QML framework for Wayland
-- **[SteamGridDB](https://www.steamgriddb.com)** — Visual asset API
+- **[Quickshell](https://github.com/outfoxxed/quickshell)** — Qt6/QML Wayland shell framework
+- **[SteamGridDB](https://www.steamgriddb.com)** — Game cover art API
 - **[Wallust](https://codeberg.org/explosion-mental/wallust)** — Color palette from wallpaper
+- **[Matugen](https://github.com/InioX/matugen)** — Material You color generation
 - **Font Awesome** — Icons
-- **Steam / Heroic** — Gaming platforms
+- **Steam / Heroic / Lutris** — Gaming platforms
 
 ---
 
@@ -422,6 +548,6 @@ Inspired by [caelestia-dots/shell](https://github.com/caelestia-dots/shell)
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/waxdred)
 
-**Author** · Florian &nbsp;·&nbsp; **Version** · 1.2.0 &nbsp;·&nbsp; **Date** · 2026-05-21
+**Author** · Florian &nbsp;·&nbsp; **Version** · 1.3.0 &nbsp;·&nbsp; **Date** · 2026-05-31
 
 </div>

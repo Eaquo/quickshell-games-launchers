@@ -414,14 +414,9 @@ class GameLauncher:
             games.sort(key=lambda g: g.get("name", "").lower())
         return games
 
-    def load_wallust_colors(self) -> Dict[str, str]:
-        wallust_path = expand_path(
-            self.config.get("appearance", {}).get(
-                "wallust_path", "~/.cache/wal/wal.json"
-            )
-        )
+    def _load_wal_json(self, path: str) -> Dict[str, str]:
         try:
-            with open(wallust_path, "r") as f:
+            with open(expand_path(path), "r") as f:
                 data = json.load(f)
             colors = {}
             if "special" in data:
@@ -432,18 +427,34 @@ class GameLauncher:
         except Exception:
             return {}
 
+    def load_wallust_colors(self) -> Dict[str, str]:
+        return self._load_wal_json(
+            self.config.get("appearance", {}).get(
+                "wallust_path", "~/.cache/wal/wal.json"
+            )
+        )
+
+    def load_matugen_colors(self) -> Dict[str, str]:
+        return self._load_wal_json(
+            self.config.get("appearance", {}).get(
+                "matugen_colors_path", "~/.cache/matugen/game_launcher_colors.json"
+            )
+        )
+
     def get_all_games(self) -> Dict[str, Any]:
         games = self.sort_games(self.merge_games())
-        wallust_colors = (
-            self.load_wallust_colors()
-            if self.config.get("appearance", {}).get("use_wallust", True)
-            else {}
-        )
+        appearance = self.config.get("appearance", {})
+        if appearance.get("use_matugen", False):
+            palette = self.load_matugen_colors()
+        elif appearance.get("use_wallust", True):
+            palette = self.load_wallust_colors()
+        else:
+            palette = {}
         state = self.load_state()
         return {
             "games": games,
             "config": self.config,
-            "colors": wallust_colors,
+            "colors": palette,
             "last_source": state.get("last_source", ""),
             "last_game": state.get("last_game", ""),
         }

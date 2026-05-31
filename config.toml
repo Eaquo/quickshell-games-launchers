@@ -33,9 +33,13 @@ spacing = 20
 
 [appearance]
 
-# Use pywal / wallust palette for accent colors
+# Use pywal / wallust palette for accent colors (mutually exclusive with use_matugen)
 use_wallust  = true
 wallust_path = "~/.cache/wal/wal.json"
+
+# Use matugen (Material You) palette — mutually exclusive with use_wallust
+use_matugen         = false
+matugen_colors_path = "~/.cache/matugen/game_launcher_colors.json"
 
 # Frosted-glass background behind the launcher
 blur_background    = true

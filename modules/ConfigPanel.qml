@@ -30,10 +30,12 @@ Rectangle {
     property int     eItemHeight:  config?.display?.item_height    ?? 300
     property int     eSpacing:     config?.display?.spacing        ?? 20
     // Appearance
-    property bool    eWallust:     config?.appearance?.use_wallust        ?? true
-    property string  eWallustPath: config?.appearance?.wallust_path       ?? "~/.cache/wal/wal.json"
-    property bool    eBlur:        config?.appearance?.blur_background    ?? true
-    property real    eOpacity:     config?.appearance?.background_opacity ?? 0.85
+    property bool    eWallust:     config?.appearance?.use_wallust          ?? true
+    property string  eWallustPath: config?.appearance?.wallust_path         ?? "~/.cache/wal/wal.json"
+    property bool    eMatugen:     config?.appearance?.use_matugen          ?? false
+    property string  eMatugenPath: config?.appearance?.matugen_colors_path  ?? "~/.cache/matugen/game_launcher_colors.json"
+    property bool    eBlur:        config?.appearance?.blur_background      ?? true
+    property real    eOpacity:     config?.appearance?.background_opacity   ?? 0.85
     // Behavior
     property string  eSortBy:          config?.behavior?.sort_by              ?? "recent"
     property bool    eShowFavs:        config?.behavior?.show_favorites_first ?? true
@@ -118,9 +120,11 @@ Rectangle {
                     nc.display.item_width  = panel.eItemWidth
                     nc.display.item_height = panel.eItemHeight
                     nc.display.spacing     = panel.eSpacing
-                    nc.appearance.use_wallust        = panel.eWallust
-                    nc.appearance.wallust_path       = panel.eWallustPath
-                    nc.appearance.blur_background    = panel.eBlur
+                    nc.appearance.use_wallust         = panel.eWallust
+                    nc.appearance.wallust_path        = panel.eWallustPath
+                    nc.appearance.use_matugen         = panel.eMatugen
+                    nc.appearance.matugen_colors_path = panel.eMatugenPath
+                    nc.appearance.blur_background     = panel.eBlur
                     nc.appearance.background_opacity = Math.round(panel.eOpacity * 100) / 100
                     nc.behavior.sort_by              = panel.eSortBy
                     nc.behavior.show_favorites_first = panel.eShowFavs
@@ -172,6 +176,7 @@ Rectangle {
             },
             appearance: {
                 use_wallust: eWallust, wallust_path: eWallustPath,
+                use_matugen: eMatugen, matugen_colors_path: eMatugenPath,
                 blur_background: eBlur,
                 background_opacity: Math.round(eOpacity * 100) / 100
             },
@@ -214,9 +219,11 @@ Rectangle {
         eItemWidth   = config?.display?.item_width     ?? 200
         eItemHeight  = config?.display?.item_height    ?? 300
         eSpacing     = config?.display?.spacing        ?? 20
-        eWallust     = config?.appearance?.use_wallust        ?? true
-        eWallustPath = config?.appearance?.wallust_path       ?? "~/.cache/wal/wal.json"
-        eBlur        = config?.appearance?.blur_background    ?? true
+        eWallust     = config?.appearance?.use_wallust          ?? true
+        eWallustPath = config?.appearance?.wallust_path         ?? "~/.cache/wal/wal.json"
+        eMatugen     = config?.appearance?.use_matugen          ?? false
+        eMatugenPath = config?.appearance?.matugen_colors_path  ?? "~/.cache/matugen/game_launcher_colors.json"
+        eBlur        = config?.appearance?.blur_background      ?? true
         eOpacity     = config?.appearance?.background_opacity ?? 0.85
         eSortBy         = config?.behavior?.sort_by              ?? "recent"
         eShowFavs       = config?.behavior?.show_favorites_first ?? true
@@ -847,13 +854,115 @@ Rectangle {
             width: parent ? parent.width : 0
             topPadding: 4
             SRow { lbl: i18n.t("cfg_wallust"); sub: i18n.t("cfg_wallust_sub")
-                CfgToggle { checked: panel.eWallust; onToggled: v => panel.eWallust = v }
+                CfgToggle {
+                    checked: panel.eWallust
+                    onToggled: v => {
+                        panel.eWallust = v
+                        if (v) panel.eMatugen = false
+                    }
+                }
             }
             SRow { lbl: i18n.t("cfg_wallust_path"); sub: i18n.t("cfg_wallust_path_sub")
                 CfgText { value: panel.eWallustPath; fieldWidth: 240
                     onChanged: v => panel.eWallustPath = v
                 }
             }
+            SRow { lbl: i18n.t("cfg_matugen"); sub: i18n.t("cfg_matugen_sub")
+                CfgToggle {
+                    checked: panel.eMatugen
+                    onToggled: v => {
+                        panel.eMatugen = v
+                        if (v) panel.eWallust = false
+                    }
+                }
+            }
+            SRow { lbl: i18n.t("cfg_matugen_path"); sub: i18n.t("cfg_matugen_path_sub")
+                CfgText { value: panel.eMatugenPath; fieldWidth: 240
+                    onChanged: v => panel.eMatugenPath = v
+                }
+            }
+
+            // ── Palette preview ───────────────────────────────────────────
+            Item {
+                width: parent.width
+                height: 54
+                visible: panel.eWallust || panel.eMatugen
+
+                property bool hasPalette: panel.colors && panel.colors.background ? true : false
+
+                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.05) }
+
+                // No palette loaded
+                Row {
+                    visible: !parent.hasPalette
+                    anchors.left: parent.left; anchors.leftMargin: 24
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 8
+                    Text {
+                        text: ""
+                        font.family: "Font Awesome 7 Free Solid"; font.pixelSize: 11
+                        color: Qt.rgba(1,1,1,0.22)
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        text: "Palette non disponible — relancer le launcher"
+                        font.pixelSize: 11; color: Qt.rgba(1,1,1,0.25)
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+
+                // Palette loaded — show swatches
+                RowLayout {
+                    visible: parent.hasPalette
+                    anchors.left: parent.left; anchors.right: parent.right
+                    anchors.leftMargin: 24; anchors.rightMargin: 24
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 4
+
+                    Text {
+                        text: "Palette"
+                        font.pixelSize: 11; color: Qt.rgba(1,1,1,0.35)
+                        Layout.preferredWidth: 50
+                    }
+
+                    // bg
+                    Rectangle {
+                        Layout.preferredWidth: 20; Layout.preferredHeight: 20; radius: 5
+                        color: panel.colors.background || panel.bg
+                        border.color: Qt.rgba(1,1,1,0.18); border.width: 1
+                        ToolTip.visible: bgM.containsMouse; ToolTip.text: panel.colors.background || ""
+                        MouseArea { id: bgM; anchors.fill: parent; hoverEnabled: true }
+                    }
+                    // fg
+                    Rectangle {
+                        Layout.preferredWidth: 20; Layout.preferredHeight: 20; radius: 5
+                        color: panel.colors.foreground || panel.fg
+                        border.color: Qt.rgba(1,1,1,0.18); border.width: 1
+                        ToolTip.visible: fgM.containsMouse; ToolTip.text: panel.colors.foreground || ""
+                        MouseArea { id: fgM; anchors.fill: parent; hoverEnabled: true }
+                    }
+
+                    // separator
+                    Item { Layout.preferredWidth: 6 }
+
+                    // color0–15
+                    Repeater {
+                        model: 16
+                        Rectangle {
+                            required property int index
+                            Layout.preferredWidth: 18; Layout.preferredHeight: 18; radius: 4
+                            color: panel.colors["color" + index] || "transparent"
+                            border.color: Qt.rgba(1,1,1,0.12); border.width: 1
+                            ToolTip.visible: swM.containsMouse
+                            ToolTip.text: "color" + index + "  " + (panel.colors["color" + index] || "")
+                            MouseArea { id: swM; anchors.fill: parent; hoverEnabled: true }
+                        }
+                    }
+
+                    Item { Layout.fillWidth: true }
+                }
+            }
+
             SRow { lbl: i18n.t("cfg_blur"); sub: i18n.t("cfg_blur_sub")
                 CfgToggle { checked: panel.eBlur; onToggled: v => panel.eBlur = v }
             }
