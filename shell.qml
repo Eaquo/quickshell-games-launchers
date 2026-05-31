@@ -100,9 +100,8 @@ ShellRoot {
                     MouseArea {
                         anchors.fill: parent
                         onClicked: {
-                            // root.launcherVisible = false
-                            // rootItem.forceActiveFocus()
-                            onClosing: Qt.quit()
+                            root.launcherVisible = false
+                            rootItem.forceActiveFocus()
                         }
                     }
                 }
