@@ -32,8 +32,9 @@ ShellRoot {
         }
     })
 
-    property bool launcherVisible: true  // Visible for testing - TODO: add IPC toggle
+    property bool launcherVisible: true
     property bool configPanelVisible: false
+    property bool configLoaded: false
 
     // Load config from backend
     Process {
@@ -52,6 +53,7 @@ ShellRoot {
                 const result = JSON.parse(configProcess.output);
                 if (result.config) {
                     root.config = result.config;
+                    root.configLoaded = true;
                     console.log("Config loaded:", JSON.stringify(result.config.display));
                 }
             } catch (e) {
@@ -132,7 +134,7 @@ ShellRoot {
                     }
 
                     visible: true
-                    opacity: root.launcherVisible ? 1.0 : 0.0
+                    opacity: (root.launcherVisible && root.configLoaded) ? 1.0 : 0.0
 
                     Behavior on x       { NumberAnimation { duration: root.config.animations.duration_ms; easing.type: Easing.OutCubic } }
                     Behavior on y       { NumberAnimation { duration: root.config.animations.duration_ms; easing.type: Easing.OutCubic } }
