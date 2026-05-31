@@ -78,8 +78,9 @@ Rectangle {
     property string  eExcludeCategories:   (config?.filtering?.exclude_categories ?? []).join(", ")
     property string  eExcludeKeywords:     (config?.filtering?.exclude_keywords   ?? []).join(", ")
 
-    property bool hasChanges:    false
-    property int  activeSection: 0
+    property bool   hasChanges:   false
+    property int    activeSection: 0
+    property string saveError:    ""
 
     // ── Geometry ──────────────────────────────────────────────────────────────
     width: 760; height: 540
@@ -102,8 +103,14 @@ Rectangle {
         onExited: {
             try {
                 const r = JSON.parse(saveProc.out)
+                if (!r.ok) {
+                    panel.saveError = r.error || "Save failed"
+                    saveProc.out = ""
+                    return
+                }
                 if (r.ok) {
                     panel.hasChanges = false
+                    panel.saveError = ""
                     const nc = JSON.parse(JSON.stringify(panel.config))
                     if (!nc.display)     nc.display     = {}
                     if (!nc.appearance)  nc.appearance  = {}
@@ -452,7 +459,12 @@ Rectangle {
                 RowLayout {
                     anchors.fill: parent; anchors.margins: 16
                     Row {
-                        visible: panel.hasChanges; spacing: 6
+                        visible: panel.saveError !== ""; spacing: 6
+                        Rectangle { width: 7; height: 7; radius: 4; color: "#ef4444"; anchors.verticalCenter: parent.verticalCenter }
+                        Text { text: panel.saveError; font.pixelSize: 12; color: "#ef4444"; maximumLineCount: 1; elide: Text.ElideRight }
+                    }
+                    Row {
+                        visible: panel.hasChanges && panel.saveError === ""; spacing: 6
                         Rectangle { width: 7; height: 7; radius: 4; color: "#f59e0b"; anchors.verticalCenter: parent.verticalCenter }
                         Text { text: i18n.t("cfg_unsaved"); font.pixelSize: 12; color: Qt.rgba(1,1,1,0.4) }
                     }

@@ -12,9 +12,9 @@ import tomllib
 # Permet les imports absolus depuis modules/service/ quand lancé comme script
 sys.path.insert(0, str(Path(__file__).parent))
 
-from fonction.image_cache import ImageCache
-from fonction.scanners import GameScanner, expand_path
-from fonction.sgdb import SGDBClient
+from helpers.image_cache import ImageCache
+from helpers.scanners import GameScanner, expand_path
+from helpers.sgdb import SGDBClient
 
 
 class GameLauncher:

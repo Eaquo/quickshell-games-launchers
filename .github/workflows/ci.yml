@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  python:
+    name: Python syntax & imports
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install vdf tomlkit
+
+      - name: Syntax check (all .py files)
+        run: find modules/service -name "*.py" -exec python -m py_compile {} \;
+
+      - name: Import check (backend dry-run)
+        run: |
+          cd modules/service
+          python - <<'EOF'
+          import sys, importlib.util, pathlib
+          files = ["backend.py", "config_writer.py",
+                   "helpers/image_cache.py", "helpers/scanners.py", "helpers/sgdb.py"]
+          for f in files:
+              spec = importlib.util.spec_from_file_location("_mod", f)
+              mod  = importlib.util.module_from_spec(spec)
+              try:
+                  spec.loader.exec_module(mod)
+              except SystemExit:
+                  pass   # backend calls main() on import — ignore exit
+              except Exception as e:
+                  print(f"FAIL {f}: {e}", file=sys.stderr)
+                  sys.exit(1)
+              print(f"OK   {f}")
+          EOF
