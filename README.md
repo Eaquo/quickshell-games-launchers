@@ -138,6 +138,13 @@ cp -r quickshell-games-launchers/game-launcher ~/.config/quickshell/game-launche
 ### Hyprland keybind
 
 Add to `~/.config/hypr/hyprland.conf`:
+
+**AUR install:**
+```conf
+bind = SUPER, G, exec, quickshell-game
+```
+
+**From source:**
 ```conf
 bind = SUPER, G, exec, ~/.config/quickshell/game-launcher/toggle.sh
 ```
