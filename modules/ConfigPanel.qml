@@ -47,10 +47,10 @@ Rectangle {
     property int     eAnimDuration:    config?.animations?.duration_ms        ?? 300
     // Steam
     property bool    eSteamEnabled:    config?.steam?.enabled                 ?? true
-    property string  eSteamPaths:      (config?.steam?.library_paths          ?? []).join("\n")
+    property var     eSteamPaths:      config?.steam?.library_paths           ?? []
     // Heroic
     property bool    eHeroicEnabled:   config?.heroic?.enabled                ?? true
-    property string  eHeroicPaths:     (config?.heroic?.config_paths          ?? []).join("\n")
+    property var     eHeroicPaths:     config?.heroic?.config_paths           ?? []
     property bool    eHeroicEpic:      config?.heroic?.scan_epic              ?? true
     property bool    eHeroicGog:       config?.heroic?.scan_gog               ?? true
     property bool    eHeroicAmazon:    config?.heroic?.scan_amazon            ?? true
@@ -166,13 +166,13 @@ Rectangle {
                     nc.behavior.start_in_bigpicture  = panel.eBigPicture
                     nc.animations.duration_ms        = panel.eAnimDuration
                     nc.steam.enabled                 = panel.eSteamEnabled
-                    nc.steam.library_paths           = panel.eSteamPaths.split("\n").map(s => s.trim()).filter(s => s.length > 0)
+                    nc.steam.library_paths           = panel.eSteamPaths.filter(s => s.trim().length > 0)
                     nc.heroic.enabled                = panel.eHeroicEnabled
                     nc.heroic.scan_epic              = panel.eHeroicEpic
                     nc.heroic.scan_gog               = panel.eHeroicGog
                     nc.heroic.scan_amazon            = panel.eHeroicAmazon
                     nc.heroic.scan_sideload          = panel.eHeroicSideload
-                    nc.heroic.config_paths           = panel.eHeroicPaths.split("\n").map(s => s.trim()).filter(s => s.length > 0)
+                    nc.heroic.config_paths           = panel.eHeroicPaths.filter(s => s.trim().length > 0)
                     nc.lutris.enabled                = panel.eLutrisEnabled
                     nc.lutris.db_path                = panel.eLutrisDb
                     nc.steamgriddb.enabled           = panel.eSgdbEnabled
@@ -222,10 +222,10 @@ Rectangle {
             },
             animations: { duration_ms: eAnimDuration },
             steam:  { enabled: eSteamEnabled,
-                      library_paths: eSteamPaths.split("\n").map(s => s.trim()).filter(s => s.length > 0) },
+                      library_paths: eSteamPaths.filter(s => s.trim().length > 0) },
             heroic: { enabled: eHeroicEnabled, scan_epic: eHeroicEpic, scan_gog: eHeroicGog,
                       scan_amazon: eHeroicAmazon, scan_sideload: eHeroicSideload,
-                      config_paths: eHeroicPaths.split("\n").map(s => s.trim()).filter(s => s.length > 0) },
+                      config_paths: eHeroicPaths.filter(s => s.trim().length > 0) },
             lutris: { enabled: eLutrisEnabled, db_path: eLutrisDb },
             steamgriddb: {
                 enabled: eSgdbEnabled, api_key: eSgdbApiKey, image_type: eSgdbImageType,
@@ -272,9 +272,9 @@ Rectangle {
         eBigPicture     = config?.behavior?.start_in_bigpicture  ?? false
         eAnimDuration   = config?.animations?.duration_ms        ?? 300
         eSteamEnabled   = config?.steam?.enabled                 ?? true
-        eSteamPaths     = (config?.steam?.library_paths          ?? []).join("\n")
+        eSteamPaths     = config?.steam?.library_paths  ?? []
         eHeroicEnabled  = config?.heroic?.enabled                ?? true
-        eHeroicPaths    = (config?.heroic?.config_paths          ?? []).join("\n")
+        eHeroicPaths    = config?.heroic?.config_paths ?? []
         eHeroicEpic     = config?.heroic?.scan_epic              ?? true
         eHeroicGog      = config?.heroic?.scan_gog               ?? true
         eHeroicAmazon   = config?.heroic?.scan_amazon            ?? true
@@ -848,6 +848,88 @@ Rectangle {
 
     // ── Section components ────────────────────────────────────────────────────
 
+    // Path list editor — one editable row per path + add/remove
+    component PathList: Column {
+        id: pl
+        property var    items: []
+        property string addLabel: i18n.t("cfg_path_add")
+        signal changed(var newItems)
+        width: parent ? parent.width : 0
+        spacing: 6
+
+        Repeater {
+            model: pl.items.length
+            delegate: RowLayout {
+                id: pathRow
+                property int pathIdx: index
+                width: pl.width; spacing: 6
+
+                Rectangle {
+                    Layout.fillWidth: true; height: 32; radius: 8
+                    color: pf.activeFocus ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.07)
+                    border.color: pf.activeFocus ? panel.accent : Qt.rgba(1,1,1,0.15); border.width: 1
+                    Behavior on color        { ColorAnimation { duration: 120 } }
+                    Behavior on border.color { ColorAnimation { duration: 120 } }
+                    TextField {
+                        id: pf
+                        anchors.fill: parent; anchors.margins: 6
+                        font.pixelSize: 12; font.family: "monospace"; color: panel.fg
+                        background: Item {}
+                        selectByMouse: true
+                        Component.onCompleted: text = pl.items[pathRow.pathIdx] ?? ""
+                        Connections {
+                            target: pl
+                            function onItemsChanged() {
+                                if (!pf.activeFocus)
+                                    pf.text = pl.items[pathRow.pathIdx] ?? ""
+                            }
+                        }
+                        function commit() {
+                            const v = text
+                            if (v !== (pl.items[pathRow.pathIdx] ?? "")) {
+                                var arr = pl.items.slice()
+                                arr[pathRow.pathIdx] = v
+                                pl.changed(arr)
+                            }
+                        }
+                        onActiveFocusChanged: if (!activeFocus) commit()
+                        onEditingFinished: { commit(); focus = false }
+                        Keys.onEscapePressed: { text = pl.items[pathRow.pathIdx] ?? ""; focus = false }
+                    }
+                }
+
+                Rectangle {
+                    width: 32; height: 32; radius: 8
+                    color: pdM.containsMouse ? Qt.rgba(1,0.2,0.2,0.22) : Qt.rgba(1,1,1,0.07)
+                    border.color: Qt.rgba(1,1,1,0.12); border.width: 1
+                    Behavior on color { ColorAnimation { duration: 100 } }
+                    Text { anchors.centerIn: parent; text: "✕"; font.pixelSize: 13; color: Qt.rgba(1,0.4,0.4,0.85) }
+                    MouseArea { id: pdM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            var arr = pl.items.slice()
+                            arr.splice(pathRow.pathIdx, 1)
+                            pl.changed(arr)
+                        }
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            width: 170; height: 30; radius: 8
+            color: paM.containsMouse ? Qt.rgba(1,1,1,0.12) : Qt.rgba(1,1,1,0.07)
+            border.color: Qt.rgba(1,1,1,0.12); border.width: 1
+            Behavior on color { ColorAnimation { duration: 100 } }
+            Row { anchors.centerIn: parent; spacing: 7
+                Text { text: ""; font.family: "Font Awesome 7 Free Solid"; font.pixelSize: 10; color: panel.fg; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: pl.addLabel; font.pixelSize: 12; color: panel.fg; anchors.verticalCenter: parent.verticalCenter }
+            }
+            MouseArea { id: paM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: { var arr = pl.items.slice(); arr.push(""); pl.changed(arr) }
+            }
+        }
+    }
+
     Component {
         id: displayComp
         Column {
@@ -1084,8 +1166,9 @@ Rectangle {
                 CfgToggle { checked: panel.eSteamEnabled; onToggled: v => panel.eSteamEnabled = v }
             }
             SCol { lbl: i18n.t("cfg_steam_paths"); sub: i18n.t("cfg_steam_paths_sub")
-                CfgArea { value: panel.eSteamPaths
-                    onChanged: v => panel.eSteamPaths = v
+                PathList {
+                    items: panel.eSteamPaths
+                    onChanged: p => { panel.eSteamPaths = p; panel.hasChanges = true }
                 }
             }
         }
@@ -1112,8 +1195,9 @@ Rectangle {
                 CfgToggle { checked: panel.eHeroicSideload; onToggled: v => panel.eHeroicSideload = v }
             }
             SCol { lbl: i18n.t("cfg_heroic_paths"); sub: i18n.t("cfg_heroic_paths_sub")
-                CfgArea { value: panel.eHeroicPaths
-                    onChanged: v => panel.eHeroicPaths = v
+                PathList {
+                    items: panel.eHeroicPaths
+                    onChanged: p => { panel.eHeroicPaths = p; panel.hasChanges = true }
                 }
             }
         }

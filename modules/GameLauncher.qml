@@ -9,6 +9,9 @@ Rectangle {
     id: launcher
     I18n { id: i18n }
 
+    // Catch-all — prevents clicks on empty areas from reaching the quit MouseArea
+    MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onClicked: {} }
+
     required property var config
     property var gamesData: []
     property var filteredGames: []

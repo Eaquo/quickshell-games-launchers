@@ -16,6 +16,11 @@ All notable changes to this project will be documented in this file.
 - Lazy loading for game cards
 - Loading dots animation during game fetch
 
+### Added
+- Path list editor for Steam library paths and Heroic config paths — add/remove individual paths with × button
+- Manual entries editor in ConfigPanel — master-detail layout, title/command/cover per entry, add/delete
+- `cfg_path_add` i18n key in all 5 languages
+
 ### Fixed
 - CfgText commits value on focus loss, not only on Enter key (API key, paths)
 - CfgSlider / CfgSpin / CfgText values now load correctly from config (QML binding preserved)
@@ -23,6 +28,9 @@ All notable changes to this project will be documented in this file.
 - Close launcher on click outside the dim overlay (was broken syntax)
 - Flash of default config on startup suppressed (`configLoaded` gate)
 - SteamGridDB covers now fetched for Lutris and manual games (name-search fallback)
+- Click outside launcher now quits cleanly (Qt.quit) — no full-screen dim overlay, launcher floats over desktop
+- Catch-all MouseArea in GameLauncher and BigPictureView — clicks on empty areas no longer quit the app
+- PanelWindow keyboard focus releases correctly when launcher is hidden
 
 ### Changed
 - Config writes back to TOML preserving comments (`tomlkit`)

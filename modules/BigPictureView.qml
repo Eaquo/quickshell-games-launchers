@@ -7,6 +7,9 @@ Item {
     id: bp
     I18n { id: i18n }
 
+    // Catch-all — prevents clicks on empty areas from reaching the quit MouseArea
+    MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onClicked: {} }
+
     required property var filteredGames
     required property var colors
     property int selectedIndex: 0

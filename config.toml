@@ -34,11 +34,11 @@ spacing = 20
 [appearance]
 
 # Use pywal / wallust palette for accent colors (mutually exclusive with use_matugen)
-use_wallust  = true
+use_wallust  = false
 wallust_path = "~/.cache/wal/wal.json"
 
 # Use matugen (Material You) palette — mutually exclusive with use_wallust
-use_matugen         = false
+use_matugen         = true
 matugen_colors_path = "~/.cache/matugen/game_launcher_colors.json"
 
 # Frosted-glass background behind the launcher
@@ -109,7 +109,7 @@ scan_sideload = true # Games added manually in Heroic
 [lutris]
 
 enabled = true
-db_path = "~/.local/share/lutris/pga.db"
+db_path = "~/.var/app/net.lutris.Lutris/data/lutris/pga.db"
 
 
 # ── FILTERING ────────────────────────────────────────────────────────────────
@@ -196,6 +196,6 @@ box_art_dir = "~/.config/quickshell/game-launcher/box-art"
 # ── Add entries below — copy the block to add more ───────────────────────
 
 [[manual.entries]]
-title          = "Game Library"
+title = "Game Library"
 launch_command = "~/.config/quickshell/game-launcher/modules/service/run_in_terminal.sh python3 ~/.config/quickshell/game-launcher/modules/service/list_games.py"
-path_box_art   = "library.png"
+path_box_art = "library.png"

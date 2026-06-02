@@ -89,23 +89,10 @@ ShellRoot {
                 Component.onCompleted: rootItem.forceActiveFocus()
 
 
-                // Dim background overlay
-                Rectangle {
+                // Invisible full-screen area — click outside launcher quits
+                MouseArea {
                     anchors.fill: parent
-                    color: "#000000"
-                    opacity: root.launcherVisible ? 0.6 : 0
-
-                    Behavior on opacity {
-                        NumberAnimation { duration: 200 }
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: {
-                            root.launcherVisible = false
-                            rootItem.forceActiveFocus()
-                        }
-                    }
+                    onClicked: Qt.quit()
                 }
 
                 GameLauncher {
@@ -140,7 +127,7 @@ ShellRoot {
                     Behavior on y       { NumberAnimation { duration: root.config.animations.duration_ms; easing.type: Easing.OutCubic } }
                     Behavior on opacity { NumberAnimation { duration: root.config.animations.duration_ms; easing.type: Easing.OutCubic } }
 
-                    onCloseRequested: root.launcherVisible = false
+                    onCloseRequested: Qt.quit()
                     onOpenConfigRequested: {
                         root.configPanelVisible = true
                         configPanel.forceActiveFocus()
