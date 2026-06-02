@@ -85,6 +85,8 @@ Rectangle {
     property int    activeSection: 0
     property string saveError:    ""
 
+    property int selectedManualIdx: 0
+
     function manualUpdateEntry(idx, key, val) {
         var arr = JSON.parse(JSON.stringify(panel.eManualEntries))
         if (arr[idx] !== undefined) { arr[idx][key] = val; panel.eManualEntries = arr; panel.hasChanges = true }
@@ -92,12 +94,17 @@ Rectangle {
     function manualAddEntry() {
         var arr = JSON.parse(JSON.stringify(panel.eManualEntries))
         arr.push({ title: "", launch_command: "", path_box_art: "" })
-        panel.eManualEntries = arr; panel.hasChanges = true
+        panel.eManualEntries = arr
+        panel.selectedManualIdx = arr.length - 1
+        panel.hasChanges = true
     }
     function manualRemoveEntry(idx) {
         var arr = JSON.parse(JSON.stringify(panel.eManualEntries))
         arr.splice(idx, 1)
-        panel.eManualEntries = arr; panel.hasChanges = true
+        panel.eManualEntries = arr
+        if (panel.selectedManualIdx >= arr.length)
+            panel.selectedManualIdx = Math.max(0, arr.length - 1)
+        panel.hasChanges = true
     }
 
     // ── Geometry ──────────────────────────────────────────────────────────────
@@ -1217,143 +1224,225 @@ Rectangle {
     }
 
     // ── Manual entries editor ─────────────────────────────────────────────────
-    component EntryField: Rectangle {
-        id: ef
+
+    // Single-line field for manual entries
+    component MField: Rectangle {
+        id: mf
         property string placeholder: ""
-        property string fieldValue: ""
-        property int    entryIdx: -1
-        property string fieldKey: ""
-        signal committed(string v)
+        property string fkey: ""
+        property int    eidx: -1
         width: parent ? parent.width : 0; height: 32; radius: 8
-        color: efTf.activeFocus ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.07)
-        border.color: efTf.activeFocus ? panel.accent : Qt.rgba(1,1,1,0.15); border.width: 1
+        color: mfTf.activeFocus ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.07)
+        border.color: mfTf.activeFocus ? panel.accent : Qt.rgba(1,1,1,0.15); border.width: 1
         Behavior on color        { ColorAnimation { duration: 120 } }
         Behavior on border.color { ColorAnimation { duration: 120 } }
         TextField {
-            id: efTf
+            id: mfTf
             anchors.fill: parent; anchors.margins: 6
-            placeholderText: ef.placeholder; font.pixelSize: 12; color: panel.fg
+            placeholderText: mf.placeholder; font.pixelSize: 12; color: panel.fg
             background: Item {}
             selectByMouse: true
-            Component.onCompleted: text = ef.fieldValue
+            Component.onCompleted: text = panel.eManualEntries[mf.eidx]?.[mf.fkey] ?? ""
             Connections {
                 target: panel
                 function onEManualEntriesChanged() {
-                    if (!efTf.activeFocus)
-                        efTf.text = panel.eManualEntries[ef.entryIdx]?.[ef.fieldKey] ?? ""
+                    if (!mfTf.activeFocus)
+                        mfTf.text = panel.eManualEntries[mf.eidx]?.[mf.fkey] ?? ""
+                }
+                function onSelectedManualIdxChanged() {
+                    mfTf.text = panel.eManualEntries[mf.eidx]?.[mf.fkey] ?? ""
                 }
             }
             function commit() {
                 const v = text
-                if (v !== (panel.eManualEntries[ef.entryIdx]?.[ef.fieldKey] ?? ""))
-                    panel.manualUpdateEntry(ef.entryIdx, ef.fieldKey, v)
+                if (v !== (panel.eManualEntries[mf.eidx]?.[mf.fkey] ?? ""))
+                    panel.manualUpdateEntry(mf.eidx, mf.fkey, v)
             }
             onActiveFocusChanged: if (!activeFocus) commit()
             onEditingFinished: { commit(); focus = false }
-            Keys.onEscapePressed: { text = ef.fieldValue; focus = false }
+            Keys.onEscapePressed: {
+                text = panel.eManualEntries[mf.eidx]?.[mf.fkey] ?? ""; focus = false
+            }
         }
     }
 
     Component {
         id: manualComp
-        Column {
+        Item {
             width: parent ? parent.width : 0
-            topPadding: 4
+            implicitHeight: 390
 
-            // Box-art folder
-            SRow { lbl: i18n.t("cfg_manual_boxart_dir"); sub: i18n.t("cfg_manual_boxart_dir_sub")
-                CfgText { value: panel.eBoxArtDir; fieldWidth: 260
-                    onChanged: v => panel.eBoxArtDir = v
-                }
-            }
+            // ── Left list ────────────────────────────────────────────────
+            Rectangle {
+                id: manLeftPanel
+                width: 155
+                anchors.top: parent.top; anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                color: panel.bgDark
 
-            // Empty state
-            Item {
-                width: parent.width; height: 52
-                visible: panel.eManualEntries.length === 0
-                Text {
-                    anchors.centerIn: parent
-                    text: i18n.t("cfg_manual_empty")
-                    font.pixelSize: 12; color: Qt.rgba(1,1,1,0.25); font.italic: true
-                }
-            }
+                Column {
+                    width: parent.width
+                    topPadding: 6
 
-            // Entry list
-            Repeater {
-                model: panel.eManualEntries.length
-                delegate: Item {
-                    id: entryDelegate
-                    property int entryIdx: index
-                    width: parent ? parent.width : 0
-                    height: entryInner.implicitHeight + 24
-
-                    Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.05) }
-
-                    Column {
-                        id: entryInner
-                        anchors.left: parent.left; anchors.right: parent.right
-                        anchors.leftMargin: 24; anchors.rightMargin: 24
-                        anchors.top: parent.top; anchors.topMargin: 12
-                        spacing: 6
-
-                        // Title row + delete button
-                        RowLayout {
-                            width: parent.width; spacing: 8
-                            Text {
-                                text: (entryIdx + 1) + "."
-                                font.pixelSize: 12; font.bold: true; color: panel.accent
-                                Layout.preferredWidth: 18
-                            }
-                            EntryField {
-                                Layout.fillWidth: true
-                                placeholder: i18n.t("cfg_manual_title")
-                                fieldValue: panel.eManualEntries[entryIdx]?.title ?? ""
-                                entryIdx: entryDelegate.entryIdx; fieldKey: "title"
-                            }
+                    Repeater {
+                        model: panel.eManualEntries.length
+                        delegate: Rectangle {
+                            id: manItem
+                            width: parent ? parent.width : 0; height: 36; radius: 8
+                            property bool active: panel.selectedManualIdx === index
+                            color: active
+                                ? Qt.rgba(parseInt(panel.accent.slice(1,3),16)/255,
+                                          parseInt(panel.accent.slice(3,5),16)/255,
+                                          parseInt(panel.accent.slice(5,7),16)/255, 0.20)
+                                : (manHov.containsMouse ? Qt.rgba(1,1,1,0.05) : "transparent")
+                            Behavior on color { ColorAnimation { duration: 100 } }
                             Rectangle {
-                                Layout.preferredWidth: 32; height: 32; radius: 8
-                                color: delHov.containsMouse ? Qt.rgba(1,0.2,0.2,0.22) : Qt.rgba(1,1,1,0.07)
-                                border.color: Qt.rgba(1,1,1,0.12); border.width: 1
-                                Behavior on color { ColorAnimation { duration: 100 } }
-                                Text { anchors.centerIn: parent; text: ""; font.family: "Font Awesome 7 Free Solid"; font.pixelSize: 11; color: Qt.rgba(1,0.4,0.4,0.85) }
-                                MouseArea { id: delHov; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                    onClicked: panel.manualRemoveEntry(entryDelegate.entryIdx)
+                                visible: manItem.active; width: 3; radius: 2
+                                anchors { left: parent.left; top: parent.top; bottom: parent.bottom; margins: 6 }
+                                color: panel.accent
+                            }
+                            Text {
+                                anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 8
+                                verticalAlignment: Text.AlignVCenter
+                                text: panel.eManualEntries[index]?.title || ("— " + (index + 1))
+                                font.pixelSize: 12
+                                color: manItem.active ? panel.fg : Qt.rgba(
+                                    parseInt(panel.fg.slice(1,3),16)/255,
+                                    parseInt(panel.fg.slice(3,5),16)/255,
+                                    parseInt(panel.fg.slice(5,7),16)/255, 0.6)
+                                elide: Text.ElideRight
+                            }
+                            MouseArea {
+                                id: manHov; anchors.fill: parent; hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: panel.selectedManualIdx = index
+                            }
+                        }
+                    }
+                }
+
+                // Add button
+                Rectangle {
+                    anchors.bottom: parent.bottom; anchors.left: parent.left
+                    anchors.right: parent.right; anchors.margins: 8
+                    height: 32; radius: 8
+                    color: addH.containsMouse ? Qt.rgba(1,1,1,0.12) : Qt.rgba(1,1,1,0.07)
+                    border.color: Qt.rgba(1,1,1,0.12); border.width: 1
+                    Behavior on color { ColorAnimation { duration: 100 } }
+                    Row { anchors.centerIn: parent; spacing: 7
+                        Text { text: ""; font.family: "Font Awesome 7 Free Solid"; font.pixelSize: 10; color: panel.fg; anchors.verticalCenter: parent.verticalCenter }
+                        Text { text: i18n.t("cfg_manual_add"); font.pixelSize: 12; color: panel.fg; anchors.verticalCenter: parent.verticalCenter }
+                    }
+                    MouseArea { id: addH; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: panel.manualAddEntry() }
+                }
+
+                Text {
+                    visible: panel.eManualEntries.length === 0
+                    anchors.top: parent.top; anchors.topMargin: 20
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
+                    text: i18n.t("cfg_manual_empty")
+                    font.pixelSize: 11; color: Qt.rgba(1,1,1,0.22)
+                    horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap
+                }
+            }
+
+            // Divider
+            Rectangle {
+                anchors.left: manLeftPanel.right; width: 1
+                anchors.top: parent.top; anchors.bottom: parent.bottom
+                color: Qt.rgba(1,1,1,0.07)
+            }
+
+            // ── Right detail panel ───────────────────────────────────────
+            Item {
+                anchors.left: manLeftPanel.right; anchors.leftMargin: 1
+                anchors.right: parent.right
+                anchors.top: parent.top; anchors.bottom: parent.bottom
+                visible: panel.eManualEntries.length > 0
+
+                Column {
+                    anchors.fill: parent; anchors.margins: 16; anchors.topMargin: 10
+                    spacing: 10
+
+                    // Box-art folder
+                    Column { spacing: 4; width: parent.width
+                        Text { text: i18n.t("cfg_manual_boxart_dir"); font.pixelSize: 11; color: Qt.rgba(1,1,1,0.45) }
+                        CfgText { value: panel.eBoxArtDir; fieldWidth: parent.width
+                            onChanged: v => panel.eBoxArtDir = v
+                        }
+                    }
+
+                    // Title
+                    Column { spacing: 4; width: parent.width
+                        Text { text: i18n.t("cfg_manual_title_lbl"); font.pixelSize: 11; color: Qt.rgba(1,1,1,0.45) }
+                        MField { fkey: "title"; eidx: panel.selectedManualIdx; placeholder: i18n.t("cfg_manual_title") }
+                    }
+
+                    // Launch command — TextArea with line wrap
+                    Column { spacing: 4; width: parent.width
+                        Text { text: i18n.t("cfg_manual_cmd_lbl"); font.pixelSize: 11; color: Qt.rgba(1,1,1,0.45) }
+                        Rectangle {
+                            width: parent.width
+                            height: Math.max(56, cmdArea.implicitHeight + 16)
+                            radius: 8
+                            color: cmdArea.activeFocus ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.07)
+                            border.color: cmdArea.activeFocus ? panel.accent : Qt.rgba(1,1,1,0.15)
+                            border.width: 1; clip: true
+                            Behavior on color        { ColorAnimation { duration: 120 } }
+                            Behavior on border.color { ColorAnimation { duration: 120 } }
+                            TextArea {
+                                id: cmdArea
+                                anchors.fill: parent; anchors.margins: 8
+                                placeholderText: i18n.t("cfg_manual_cmd")
+                                font.pixelSize: 12; font.family: "monospace"; color: panel.fg
+                                background: Item {}
+                                selectByMouse: true
+                                wrapMode: TextArea.Wrap
+                                Component.onCompleted: text = panel.eManualEntries[panel.selectedManualIdx]?.launch_command ?? ""
+                                Connections {
+                                    target: panel
+                                    function onEManualEntriesChanged() {
+                                        if (!cmdArea.activeFocus)
+                                            cmdArea.text = panel.eManualEntries[panel.selectedManualIdx]?.launch_command ?? ""
+                                    }
+                                    function onSelectedManualIdxChanged() {
+                                        cmdArea.text = panel.eManualEntries[panel.selectedManualIdx]?.launch_command ?? ""
+                                    }
+                                }
+                                function commit() {
+                                    const v = text
+                                    const cur = panel.eManualEntries[panel.selectedManualIdx]?.launch_command ?? ""
+                                    if (v !== cur) panel.manualUpdateEntry(panel.selectedManualIdx, "launch_command", v)
+                                }
+                                onActiveFocusChanged: if (!activeFocus) commit()
+                                Keys.onEscapePressed: {
+                                    text = panel.eManualEntries[panel.selectedManualIdx]?.launch_command ?? ""
+                                    focus = false
                                 }
                             }
                         }
+                    }
 
-                        // Launch command
-                        EntryField {
-                            placeholder: i18n.t("cfg_manual_cmd")
-                            fieldValue: panel.eManualEntries[entryIdx]?.launch_command ?? ""
-                            entryIdx: entryDelegate.entryIdx; fieldKey: "launch_command"
+                    // Cover image
+                    Column { spacing: 4; width: parent.width
+                        Text { text: i18n.t("cfg_manual_cover_lbl"); font.pixelSize: 11; color: Qt.rgba(1,1,1,0.45) }
+                        MField { fkey: "path_box_art"; eidx: panel.selectedManualIdx; placeholder: i18n.t("cfg_manual_cover") }
+                    }
+
+                    // Delete button
+                    Rectangle {
+                        width: 130; height: 32; radius: 8
+                        color: delH.containsMouse ? Qt.rgba(1,0.15,0.15,0.30) : Qt.rgba(1,0.15,0.15,0.15)
+                        border.color: Qt.rgba(1,0.3,0.3,0.3); border.width: 1
+                        Behavior on color { ColorAnimation { duration: 100 } }
+                        Row { anchors.centerIn: parent; spacing: 8
+                            Text { text: ""; font.family: "Font Awesome 7 Free Solid"; font.pixelSize: 11; color: Qt.rgba(1,0.45,0.45,1); anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: i18n.t("cfg_manual_delete"); font.pixelSize: 13; color: Qt.rgba(1,0.45,0.45,1); anchors.verticalCenter: parent.verticalCenter }
                         }
-
-                        // Cover image
-                        EntryField {
-                            placeholder: i18n.t("cfg_manual_cover")
-                            fieldValue: panel.eManualEntries[entryIdx]?.path_box_art ?? ""
-                            entryIdx: entryDelegate.entryIdx; fieldKey: "path_box_art"
+                        MouseArea { id: delH; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: panel.manualRemoveEntry(panel.selectedManualIdx)
                         }
                     }
-                }
-            }
-
-            // Add button
-            Item {
-                width: parent.width; height: 52
-                Rectangle {
-                    anchors.right: parent.right; anchors.rightMargin: 24
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 150; height: 34; radius: 8
-                    color: addHov.containsMouse ? Qt.rgba(1,1,1,0.12) : Qt.rgba(1,1,1,0.07)
-                    border.color: Qt.rgba(1,1,1,0.15); border.width: 1
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                    Row { anchors.centerIn: parent; spacing: 8
-                        Text { text: ""; font.family: "Font Awesome 7 Free Solid"; font.pixelSize: 11; color: panel.fg; anchors.verticalCenter: parent.verticalCenter }
-                        Text { text: i18n.t("cfg_manual_add"); font.pixelSize: 13; color: panel.fg; anchors.verticalCenter: parent.verticalCenter }
-                    }
-                    MouseArea { id: addHov; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: panel.manualAddEntry() }
                 }
             }
         }
