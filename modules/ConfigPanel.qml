@@ -1233,7 +1233,8 @@ Rectangle {
             id: efTf
             anchors.fill: parent; anchors.margins: 6
             placeholderText: ef.placeholder; font.pixelSize: 12; color: panel.fg
-            background: Item {}; selectByMouse: true
+            background: Item {}
+            selectByMouse: true
             Component.onCompleted: text = ef.fieldValue
             Connections {
                 target: panel
