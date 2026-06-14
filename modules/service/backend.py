@@ -142,19 +142,34 @@ class GameLauncher:
                 original = f.read()
             content = original
 
-            for _, key, _, _ in NEW_KEYS:
-                seen, new_lines = False, []
+            for section, key, _, _ in NEW_KEYS:
+                seen, new_lines, cur_section = False, [], ""
                 for line in content.split("\n"):
+                    sec_match = re.match(r"^\[([^\]]+)\]", line.strip())
+                    if sec_match:
+                        cur_section = sec_match.group(1)
                     if re.match(rf"^\s*{re.escape(key)}\s*=", line):
-                        if not seen:
+                        if cur_section == section and not seen:
                             new_lines.append(line)
                             seen = True
+                        elif cur_section != section:
+                            new_lines.append(line)
                     else:
                         new_lines.append(line)
                 content = "\n".join(new_lines)
 
+            def key_in_section(text, section, key):
+                cur = ""
+                for line in text.split("\n"):
+                    sec_match = re.match(r"^\[([^\]]+)\]", line.strip())
+                    if sec_match:
+                        cur = sec_match.group(1)
+                    if cur == section and re.match(rf"^\s*{re.escape(key)}\s*=", line):
+                        return True
+                return False
+
             for section, key, default, comment in NEW_KEYS:
-                if re.search(rf"^\s*{re.escape(key)}\s*=", content, re.MULTILINE):
+                if key_in_section(content, section, key):
                     continue
                 header = f"[{section}]"
                 if header not in content:

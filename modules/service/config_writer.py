@@ -53,7 +53,7 @@ def main():
                         doc[section][key] = aot
                     else:
                         doc[section][key] = val
-                elif isinstance(val, list):
+                else:
                     doc[section].add(key, val)
 
         with open(path, "w") as f:
