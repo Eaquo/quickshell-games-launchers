@@ -44,6 +44,7 @@ Rectangle {
     property bool    eRememberSource:  config?.behavior?.remember_source      ?? true
     property bool    eBigPicture:      config?.behavior?.start_in_bigpicture  ?? false
     // Animations
+    property bool    eAnimEnabled:     config?.animations?.enabled            ?? true
     property int     eAnimDuration:    config?.animations?.duration_ms        ?? 300
     // Steam
     property bool    eSteamEnabled:    config?.steam?.enabled                 ?? true
@@ -164,6 +165,7 @@ Rectangle {
                     nc.behavior.default_source_index = panel.eDefaultSource
                     nc.behavior.remember_source      = panel.eRememberSource
                     nc.behavior.start_in_bigpicture  = panel.eBigPicture
+                    nc.animations.enabled            = panel.eAnimEnabled
                     nc.animations.duration_ms        = panel.eAnimDuration
                     nc.steam.enabled                 = panel.eSteamEnabled
                     nc.steam.library_paths           = panel.eSteamPaths.filter(s => s.trim().length > 0)
@@ -220,7 +222,7 @@ Rectangle {
                 close_on_launch: eCloseOnLaunch, default_source_index: eDefaultSource,
                 remember_source: eRememberSource, start_in_bigpicture: eBigPicture
             },
-            animations: { duration_ms: eAnimDuration },
+            animations: { enabled: eAnimEnabled, duration_ms: eAnimDuration },
             steam:  { enabled: eSteamEnabled,
                       library_paths: eSteamPaths.filter(s => s.trim().length > 0) },
             heroic: { enabled: eHeroicEnabled, scan_epic: eHeroicEpic, scan_gog: eHeroicGog,
@@ -270,6 +272,7 @@ Rectangle {
         eDefaultSource  = config?.behavior?.default_source_index ?? 0
         eRememberSource = config?.behavior?.remember_source      ?? true
         eBigPicture     = config?.behavior?.start_in_bigpicture  ?? false
+        eAnimEnabled    = config?.animations?.enabled            ?? true
         eAnimDuration   = config?.animations?.duration_ms        ?? 300
         eSteamEnabled   = config?.steam?.enabled                 ?? true
         eSteamPaths     = config?.steam?.library_paths  ?? []
@@ -1149,6 +1152,9 @@ Rectangle {
         Column {
             width: parent ? parent.width : 0
             topPadding: 4
+            SRow { lbl: i18n.t("cfg_anim_gradient"); sub: i18n.t("cfg_anim_gradient_sub")
+                CfgToggle { checked: panel.eAnimEnabled; onToggled: v => panel.eAnimEnabled = v }
+            }
             SRow { lbl: i18n.t("cfg_anim_duration"); sub: i18n.t("cfg_anim_duration_sub")
                 CfgSlider { from: 0; to: 1000; value: panel.eAnimDuration; unit: "ms"
                     onChanged: v => panel.eAnimDuration = Math.round(v)

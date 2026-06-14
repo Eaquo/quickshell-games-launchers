@@ -124,6 +124,12 @@ class GameLauncher:
                 "false",
                 "# Include epilepsy-triggering content",
             ),
+            (
+                "animations",
+                "enabled",
+                "true",
+                "# Animated gradient border around the launcher window and search bar",
+            ),
         ]
         try:
             with open(self.config_path, "r", encoding="utf-8") as f:

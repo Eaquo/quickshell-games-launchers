@@ -16,6 +16,27 @@ Rectangle {
     property var gamesData: []
     property var filteredGames: []
     property var colors: ({})
+
+    // Palette vive & lisible pour le contour dégradé animé (filtrée par contraste sur le fond)
+    function _hexLum(h) {
+        h = ("" + h).replace("#", "")
+        if (h.length < 6) return 0
+        function _c(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4) }
+        return 0.2126 * _c(parseInt(h.slice(0,2),16)) + 0.7152 * _c(parseInt(h.slice(2,4),16)) + 0.0722 * _c(parseInt(h.slice(4,6),16))
+    }
+    function _contrast(a, b) { var la = _hexLum(a) + 0.05, lb = _hexLum(b) + 0.05; return la > lb ? la / lb : lb / la }
+    readonly property var gradPalette: {
+        var bg = colors.background || "#1a1a1a"
+        var keys = ["color1","color2","color3","color4","color5","color6","color9","color10","color11","color12","color13","color14"]
+        var out = []
+        for (var i = 0; i < keys.length; i++) {
+            var c = colors[keys[i]]
+            if (c && _contrast(c, bg) >= 2.6) out.push(c)
+        }
+        if (out.length < 2) out = [colors.color5 || "#73ff00", colors.color13 || "#ff4fa3", colors.foreground || "#ffffff"]
+        return out
+    }
+
     property int selectedIndex: 0
     property string searchText: ""
     property string selectedSource: "all"
@@ -74,6 +95,16 @@ Rectangle {
         border.color: colors.color5 || '#73ff00'
         border.width: 2
         opacity: 0.5
+    }
+
+    // Contour dégradé animé (45°, couleurs wallust lisibles qui défilent)
+    GradientBorder {
+        anchors.fill: parent
+        radius:       parent.radius
+        borderWidth:  2
+        palette:      launcher.gradPalette
+        visible:      (launcher.config?.animations?.enabled ?? true)
+        z:            100
     }
 
     onGridColumnsChanged: console.log("→ gridColumns =", gridColumns)
@@ -735,6 +766,16 @@ Rectangle {
                 border.color: searchField.activeFocus ? (colors.color5||"#73ff00") : Qt.rgba(1,1,1,0.15)
                 border.width: searchField.activeFocus ? 2 : 1
                 Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                // Contour dégradé animé de la barre de recherche
+                GradientBorder {
+                    anchors.fill: parent
+                    radius:       parent.radius
+                    borderWidth:  2
+                    palette:      launcher.gradPalette
+                    visible:      (launcher.config?.animations?.enabled ?? true)
+                    z:            50
+                }
 
                 Text {
                     anchors.left: parent.left; anchors.leftMargin: 14

@@ -15,11 +15,10 @@ All notable changes to this project will be documented in this file.
 - `F5` keyboard shortcut to refresh game list
 - Lazy loading for game cards
 - Loading dots animation during game fetch
-
-### Added
 - Path list editor for Steam library paths and Heroic config paths — add/remove individual paths with × button
 - Manual entries editor in ConfigPanel — master-detail layout, title/command/cover per entry, add/delete
 - `cfg_path_add` i18n key in all 5 languages
+- JPEG cover art priority — same visual quality as PNG at 3-10x smaller file size
 
 ### Fixed
 - CfgText commits value on focus loss, not only on Enter key (API key, paths)

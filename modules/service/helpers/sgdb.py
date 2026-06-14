@@ -165,8 +165,10 @@ class SGDBClient:
             score = likes * 1000
             if img.get("width") and img.get("height"):
                 score += img["width"] * img["height"] // 100
-            if img.get("mime") == "image/png":
-                score += 500
+            if img.get("mime") == "image/jpeg":
+                score += 800   # JPEG priority — same quality, 3-10x lighter
+            elif img.get("mime") == "image/png":
+                score += 200
             return score
 
         def filter_images(images):
@@ -249,9 +251,9 @@ class SGDBClient:
                 self.image_cache.set(cache_key, image_url)
                 return self._local_or_url(image_url)
 
-        raw = do_request(make_url("static", with_dims=True, mimes_val="image/png"))
+        raw = do_request(make_url("static", with_dims=True, mimes_val="image/jpeg,image/png"))
         if raw is None and dimensions:
-            raw = do_request(make_url("static", with_dims=False, mimes_val="image/png"))
+            raw = do_request(make_url("static", with_dims=False, mimes_val="image/jpeg,image/png"))
         image_url = best_image(raw, prefer_webm=False)
         if image_url:
             self.image_cache.set(cache_key, image_url)
@@ -425,8 +427,10 @@ class SGDBClient:
             score = likes * 1000
             if img.get("width") and img.get("height"):
                 score += img["width"] * img["height"] // 100
-            if img.get("mime") == "image/png":
-                score += 500
+            if img.get("mime") == "image/jpeg":
+                score += 800   # JPEG priority — same quality, 3-10x lighter
+            elif img.get("mime") == "image/png":
+                score += 200
             return score
 
         def do_request(url):

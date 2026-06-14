@@ -108,6 +108,8 @@ Item {
             cfg_bigpicture:           "Démarrer en Big Picture",
             cfg_bigpicture_sub:       "Lance le launcher directement en mode Big Picture au démarrage",
             // ── Animations ────────────────────────────────────────────────────
+            cfg_anim_gradient:     "Contour dégradé animé",
+            cfg_anim_gradient_sub: "Bordure animée arc-en-ciel autour du launcher et de la barre de recherche",
             cfg_anim_duration:     "Durée d'animation",
             cfg_anim_duration_sub: "Durée des animations d'ouverture / fermeture en millisecondes",
             // ── Steam ─────────────────────────────────────────────────────────
@@ -265,6 +267,8 @@ Item {
             cfg_bigpicture:           "Start in Big Picture",
             cfg_bigpicture_sub:       "Launch directly in Big Picture mode on startup",
             // ── Animations ────────────────────────────────────────────────────
+            cfg_anim_gradient:     "Animated gradient border",
+            cfg_anim_gradient_sub: "Rainbow animated border around the launcher and search bar",
             cfg_anim_duration:     "Animation duration",
             cfg_anim_duration_sub: "Open / close animation duration in milliseconds",
             // ── Steam ─────────────────────────────────────────────────────────
@@ -416,6 +420,8 @@ Item {
             cfg_remember_source_sub:  "Recuerda la última pestaña activa entre sesiones",
             cfg_bigpicture:           "Iniciar en Big Picture",
             cfg_bigpicture_sub:       "Abrir directamente en modo Big Picture al inicio",
+            cfg_anim_gradient:     "Borde degradado animado",
+            cfg_anim_gradient_sub: "Borde arcoíris animado alrededor del launcher y la barra de búsqueda",
             cfg_anim_duration:     "Duración animación",
             cfg_anim_duration_sub: "Duración de las animaciones en milisegundos",
             cfg_path_add:          "Añadir ruta",
@@ -556,6 +562,8 @@ Item {
             cfg_remember_source_sub:  "Запоминать последнюю активную вкладку",
             cfg_bigpicture:           "Запустить в Big Picture",
             cfg_bigpicture_sub:       "Запускать сразу в режиме Big Picture",
+            cfg_anim_gradient:     "Анимированная градиентная рамка",
+            cfg_anim_gradient_sub: "Радужная анимированная рамка вокруг launcher и строки поиска",
             cfg_anim_duration:     "Длительность анимации",
             cfg_anim_duration_sub: "Длительность анимации открытия / закрытия в мс",
             cfg_path_add:          "Добавить путь",
@@ -696,6 +704,8 @@ Item {
             cfg_remember_source_sub:  "最後に使ったタブを記憶する",
             cfg_bigpicture:           "Big Pictureで起動",
             cfg_bigpicture_sub:       "起動時にBig Pictureモードで直接開く",
+            cfg_anim_gradient:     "グラデーションボーダーアニメ",
+            cfg_anim_gradient_sub: "ランチャーと検索バー周囲の虹色アニメーションボーダー",
             cfg_anim_duration:     "アニメーション時間",
             cfg_anim_duration_sub: "開閉アニメーションの時間（ミリ秒）",
             cfg_path_add:          "パスを追加",
