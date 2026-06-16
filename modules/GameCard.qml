@@ -18,9 +18,8 @@ Rectangle {
     property int lastPlayed: 0  // Unix timestamp
     property real glowStrength: 0.8
     property real glowBlur: 12
-    property bool hasLocalAnimated: gameImageAnimated !== "" &&
-        (gameImageAnimated.startsWith("file://") || gameImageAnimated.startsWith("/"))
-    property string effectiveImage: hasLocalAnimated ? gameImageAnimated : gameImage
+    property bool hasAnimated: gameImageAnimated !== ""
+    property string effectiveImage: hasAnimated ? gameImageAnimated : gameImage
     property bool isWebM: effectiveImage.toLowerCase().endsWith(".webm")
     property bool isAnimatedWebP: effectiveImage.toLowerCase().endsWith(".webp")
     property bool isAnimated: isWebM || isAnimatedWebP

@@ -65,15 +65,8 @@ Item {
         running: bp.heroImages.length > 1
         repeat: true
         onTriggered: {
-            heroFadeOut.start()
+            bp.heroSlideIndex = (bp.heroSlideIndex + 1) % Math.max(bp.heroImages.length, 1)
         }
-    }
-
-    SequentialAnimation {
-        id: heroFadeOut
-        NumberAnimation { target: heroImg; property: "opacity"; to: 0; duration: 400; easing.type: Easing.InQuad }
-        ScriptAction { script: { bp.heroSlideIndex = (bp.heroSlideIndex + 1) % Math.max(bp.heroImages.length, 1) } }
-        NumberAnimation { target: heroImg; property: "opacity"; to: 1; duration: 400; easing.type: Easing.OutQuad }
     }
 
     // Hero toujours statique — slide entre image SGDB et hero Steam CDN
@@ -150,17 +143,42 @@ Item {
         color: "#080808"
     }
 
+    // ── Hero cross-fade double-buffer ───────────────────────────────────────
+    // _flip=false → slot A visible, slot B preloading
+    // _flip=true  → slot B visible, slot A preloading
+    property bool   _heroFlip: false
+    property string _heroSlotA: ""
+    property string _heroSlotB: ""
+    Component.onCompleted: { _heroSlotA = heroSrc }
+    onHeroSrcChanged: {
+        if (!_heroFlip) { _heroSlotB = heroSrc }
+        else            { _heroSlotA = heroSrc }
+    }
+
     // ── Hero image (blurred background) ─────────────────────────────────────
     Image {
-        id: heroBg
+        id: heroBgA
         anchors.fill: parent
-        source: bp.heroSrc
+        source: bp._heroSlotA
         fillMode: Image.PreserveAspectCrop
-        asynchronous: true
-        cache: true
-        opacity: 0.18
+        asynchronous: true; cache: true
+        opacity: bp._heroFlip ? 0 : 0.18
+        Behavior on opacity { NumberAnimation { duration: 280 } }
         layer.enabled: true
         layer.effect: MultiEffect { blurEnabled: true; blur: 1.0; blurMax: 48 }
+        onStatusChanged: if (status === Image.Ready && bp._heroFlip) bp._heroFlip = false
+    }
+    Image {
+        id: heroBgB
+        anchors.fill: parent
+        source: bp._heroSlotB
+        fillMode: Image.PreserveAspectCrop
+        asynchronous: true; cache: true
+        opacity: bp._heroFlip ? 0.18 : 0
+        Behavior on opacity { NumberAnimation { duration: 280 } }
+        layer.enabled: true
+        layer.effect: MultiEffect { blurEnabled: true; blur: 1.0; blurMax: 48 }
+        onStatusChanged: if (status === Image.Ready && !bp._heroFlip) bp._heroFlip = true
     }
 
     // ── TOP BAR ─────────────────────────────────────────────────────────────
@@ -332,21 +350,31 @@ Item {
         anchors.right: parent.right
         anchors.bottom: gameStrip.top
 
-        // Hero statique — Image simple, pas d'animé pour économiser les ressources
+        // Hero — double-buffer cross-fade, même slots que heroBg
         Image {
-            id: heroImg
+            id: heroImgA
             anchors.fill: parent
-            source: bp.heroSrc
+            source: bp._heroSlotA
             fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-            cache: true
-            smooth: true
+            asynchronous: true; cache: true; smooth: true
+            opacity: bp._heroFlip ? 0 : 1
+            Behavior on opacity { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
+        }
+        Image {
+            id: heroImgB
+            anchors.fill: parent
+            source: bp._heroSlotB
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true; cache: true; smooth: true
+            opacity: bp._heroFlip ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
         }
 
         // Fallback initiales — dernier recours si même la cover est absente
         Rectangle {
             anchors.fill: parent
-            visible: heroImg.status === Image.Error || heroImg.status === Image.Null
+            visible: (heroImgA.status === Image.Error || heroImgA.status === Image.Null) &&
+                     (heroImgB.status === Image.Error || heroImgB.status === Image.Null)
             color: "#111111"
             Text {
                 anchors.centerIn: parent

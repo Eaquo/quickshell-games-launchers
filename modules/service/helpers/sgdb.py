@@ -221,9 +221,7 @@ class SGDBClient:
                     if data.get("success") and data.get("data"):
                         return data["data"]
             except urllib.error.HTTPError as e:
-                if e.code == 404:
-                    self.image_cache.set(cache_key, "")
-                else:
+                if e.code != 404:
                     print(f"[sgdb] HTTP {e.code} on {url}", file=sys.stderr)
             except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as e:
                 print(f"[sgdb] request failed: {e}", file=sys.stderr)
