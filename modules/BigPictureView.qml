@@ -50,10 +50,16 @@ Item {
     property var heroImages: {
         var g = currentGame
         if (!g) return []
-        if (g.images && g.images.length > 0) return g.images
         var imgs = []
-        if (g.image) imgs.push(g.image)
-        if (g.hero_image && g.hero_image !== g.image) imgs.push(g.hero_image)
+        // Animated WebP in first position so it plays on first slide
+        var anim = g.image_animated || ""
+        if (anim && anim.toLowerCase().endsWith(".webp")) imgs.push(anim)
+        if (g.images && g.images.length > 0)
+            imgs = imgs.concat(g.images.filter(u => u !== anim))
+        else {
+            if (g.image && imgs.indexOf(g.image) === -1) imgs.push(g.image)
+            if (g.hero_image && g.hero_image !== g.image) imgs.push(g.hero_image)
+        }
         return imgs
     }
     property int heroSlideIndex: 0
@@ -350,22 +356,24 @@ Item {
         anchors.right: parent.right
         anchors.bottom: gameStrip.top
 
-        // Hero — double-buffer cross-fade, même slots que heroBg
-        Image {
+        // Hero — double-buffer cross-fade, AnimatedImage gère WebP animés et statiques
+        AnimatedImage {
             id: heroImgA
             anchors.fill: parent
             source: bp._heroSlotA
             fillMode: Image.PreserveAspectCrop
-            asynchronous: true; cache: true; smooth: true
+            asynchronous: true; cache: false; smooth: true
+            playing: !bp._heroFlip && source !== ""
             opacity: bp._heroFlip ? 0 : 1
             Behavior on opacity { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
         }
-        Image {
+        AnimatedImage {
             id: heroImgB
             anchors.fill: parent
             source: bp._heroSlotB
             fillMode: Image.PreserveAspectCrop
-            asynchronous: true; cache: true; smooth: true
+            asynchronous: true; cache: false; smooth: true
+            playing: bp._heroFlip && source !== ""
             opacity: bp._heroFlip ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
         }

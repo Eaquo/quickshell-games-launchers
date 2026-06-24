@@ -486,11 +486,13 @@ class SGDBClient:
         max_workers = sgdb_config.get("max_workers", 10)
         prefer_animated = sgdb_config.get("prefer_animated", False)
 
+        image_type = sgdb_config.get("image_type", "grid")
         games_to_fetch = []
         for i, game in enumerate(games):
             source = game.get("source", "")
             category = game.get("category", "")
             image = game.get("image", "")
+            appid = game.get("appid")
             valid_source = source in [
                 "steam",
                 "epic",
@@ -504,11 +506,17 @@ class SGDBClient:
             ]
             is_shortcut = category == "steam-shortcut"
             is_sideload = category == "sideload" or source in ["heroic", "sideload"]
+            # Also re-fetch if SGDB was never tried for this game (e.g. previously ran without key)
+            platform = self.get_steamgriddb_platform(source, category)
+            sgdb_key = f"{platform}:{appid}:{image_type}:static"
+            sgdb_never_tried = appid and self.image_cache.get(sgdb_key) is None
             needs_static = (
-                not image or "steamstatic.com" in image or is_shortcut or is_sideload
+                not image or "steamstatic.com" in image
+                or is_shortcut or is_sideload or sgdb_never_tried
             )
             needs_animated = prefer_animated and not game.get("image_animated")
-            has_id = game.get("appid") or source in ["lutris", "manual", "config"]
+            has_id = bool(appid) and str(appid) not in ("None", "") \
+                or source in ["lutris", "manual", "config"]
             if valid_source and has_id and (needs_static or needs_animated):
                 games_to_fetch.append((i, game, needs_static))
 
@@ -524,6 +532,8 @@ class SGDBClient:
                 game.get("source", ""), game.get("category", "")
             )
             appid = game.get("appid")
+            if not appid or str(appid) in ("None", ""):
+                return idx, None, None, None, []
             name = game.get("name", "")
 
             # Récupérer la version statique seulement si nécessaire
