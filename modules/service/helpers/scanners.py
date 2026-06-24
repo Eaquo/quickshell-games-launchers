@@ -82,7 +82,7 @@ class GameScanner:
         url = f"heroic://launch/{runner}/{app_name}"
         if self._heroic_bin is None:
             return f"xdg-open {url}"
-        return f"{self._heroic_bin} {url}"
+        return f"{self._heroic_bin} --no-gui {url}"
 
     # ── Steam ──────────────────────────────────────────────────────────────
 
@@ -197,7 +197,7 @@ class GameScanner:
 
             return {
                 "name": name,
-                "exec": f"steam steam://rungameid/{app_id}",
+                "exec": f"steam -silent steam://rungameid/{app_id}",
                 "image": cover_url,
                 "hero_image": f"https://cdn.cloudflare.steamstatic.com/steam/apps/{app_id}/library_hero.jpg",
                 "category": "steam",
@@ -273,7 +273,7 @@ class GameScanner:
         long_appid = self.convert_appid_to_long(appid)
         return {
             "name": name,
-            "exec": f"steam steam://rungameid/{long_appid}",
+            "exec": f"steam -silent steam://rungameid/{long_appid}",
             "image": icon if icon else "",
             "category": "steam-shortcut",
             "favorite": False,
