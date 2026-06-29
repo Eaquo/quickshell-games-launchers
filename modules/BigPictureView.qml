@@ -57,8 +57,9 @@ Item {
         if (g.images && g.images.length > 0)
             imgs = imgs.concat(g.images.filter(u => u !== anim))
         else {
+            // hero_image (library_hero.jpg 1920×620) avant image (header.jpg 460×215)
+            if (g.hero_image && imgs.indexOf(g.hero_image) === -1) imgs.push(g.hero_image)
             if (g.image && imgs.indexOf(g.image) === -1) imgs.push(g.image)
-            if (g.hero_image && g.hero_image !== g.image) imgs.push(g.hero_image)
         }
         return imgs
     }
