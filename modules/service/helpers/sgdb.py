@@ -152,6 +152,7 @@ class SGDBClient:
         game_name: str = "",
         prefer_animated: Optional[bool] = None,
         image_type: Optional[str] = None,
+        is_sideload: bool = False,
     ) -> Optional[str]:
         sgdb_config = self.config.get("steamgriddb", {})
         if not sgdb_config.get("enabled", False):
@@ -169,6 +170,10 @@ class SGDBClient:
         cache_key = (
             f"{platform}:{app_id}:{image_type or sgdb_config.get('image_type', 'grid')}:{anim_suffix}"
         )
+        if is_sideload:
+            # Key on the title as well: an entry written by an older build from
+            # the bogus direct-ID lookup would otherwise still be served (#13).
+            cache_key = f"{cache_key}:{game_name}"
         cached_url = self.image_cache.get(cache_key)
         if cached_url is not None:
             return self._local_or_url(cached_url) if cached_url else None
@@ -282,25 +287,38 @@ class SGDBClient:
                 return None
             return pool[0].get("url", pool[0].get("thumb"))
 
-        if prefer_animated:
-            # WebP uniquement : le QML ne sait pas animer les APNG ni les GIF
-            raw = do_request(make_url("animated", with_dims=True, mimes_val="image/webp"))
+        # Sideload appids are Heroic-internal ids, not real platform ids, and
+        # get_steamgriddb_platform() maps them to "steam". A direct
+        # /grids/steam/<appid> lookup can therefore resolve to an unrelated
+        # game, and because that hit returns early the title search below never
+        # runs — so every sideload entry ends up sharing the same wrong cover
+        # (upstream issue #13). Never accept a direct-ID hit for sideload.
+        if not is_sideload:
+            if prefer_animated:
+                # WebP uniquement : le QML ne sait pas animer les APNG ni les GIF
+                raw = do_request(
+                    make_url("animated", with_dims=True, mimes_val="image/webp")
+                )
+                if raw is None and dimensions:
+                    raw = do_request(
+                        make_url("animated", with_dims=False, mimes_val="image/webp")
+                    )
+                image_url = best_image(raw, animated=True)
+                if image_url:
+                    self.image_cache.set(cache_key, image_url)
+                    return self._local_or_url(image_url)
+
+            raw = do_request(
+                make_url("static", with_dims=True, mimes_val="image/jpeg,image/png")
+            )
             if raw is None and dimensions:
                 raw = do_request(
-                    make_url("animated", with_dims=False, mimes_val="image/webp")
+                    make_url("static", with_dims=False, mimes_val="image/jpeg,image/png")
                 )
-            image_url = best_image(raw, animated=True)
+            image_url = best_image(raw, prefer_webm=False)
             if image_url:
                 self.image_cache.set(cache_key, image_url)
                 return self._local_or_url(image_url)
-
-        raw = do_request(make_url("static", with_dims=True, mimes_val="image/jpeg,image/png"))
-        if raw is None and dimensions:
-            raw = do_request(make_url("static", with_dims=False, mimes_val="image/jpeg,image/png"))
-        image_url = best_image(raw, prefer_webm=False)
-        if image_url:
-            self.image_cache.set(cache_key, image_url)
-            return self._local_or_url(image_url)
 
         if game_name:
             sgdb_id = self._search_sgdb_id_by_name(game_name, api_key, timeout)
@@ -358,7 +376,11 @@ class SGDBClient:
     # ── Logo ───────────────────────────────────────────────────────────────
 
     def get_steamgriddb_logo_url(
-        self, app_id: str, platform: str = "steam", game_name: str = ""
+        self,
+        app_id: str,
+        platform: str = "steam",
+        game_name: str = "",
+        is_sideload: bool = False,
     ) -> Optional[str]:
         sgdb_config = self.config.get("steamgriddb", {})
         if not sgdb_config.get("enabled", False):
@@ -368,6 +390,8 @@ class SGDBClient:
             return None
 
         cache_key = f"{platform}:{app_id}:logo"
+        if is_sideload:
+            cache_key = f"{cache_key}:{game_name}"  # voir #13
         cached_url = self.image_cache.get(cache_key)
         if cached_url is not None:
             return self._local_or_url(cached_url) if cached_url else None
@@ -375,24 +399,26 @@ class SGDBClient:
         url = f"https://www.steamgriddb.com/api/v2/logos/{platform}/{app_id}?types=static&mimes=image/png"
         timeout = sgdb_config.get("request_timeout", 3)
 
-        try:
-            request = urllib.request.Request(url)
-            request.add_header("Authorization", f"Bearer {api_key}")
-            request.add_header("User-Agent", "QuickShell-GameLauncher/2.0")
-            request.add_header("Accept", "application/json")
-            with urllib.request.urlopen(request, timeout=timeout) as response:
-                data = json.loads(response.read().decode())
-                if data.get("success") and data.get("data"):
-                    images = [i for i in data["data"] if fits_qt(i)]
-                    if images:
-                        logo_url = images[0].get("url", images[0].get("thumb"))
-                        self.image_cache.set(cache_key, logo_url)
-                        return self._local_or_url(logo_url)
-        except urllib.error.HTTPError as e:
-            if e.code == 404:
-                self.image_cache.set(cache_key, "")
-        except (urllib.error.URLError, json.JSONDecodeError) as e:
-            print(f"[sgdb] name fallback failed: {e}", file=sys.stderr)
+        # Sideload : ID Heroic interne, pas d'appel direct par ID (#13)
+        if not is_sideload:
+            try:
+                request = urllib.request.Request(url)
+                request.add_header("Authorization", f"Bearer {api_key}")
+                request.add_header("User-Agent", "QuickShell-GameLauncher/2.0")
+                request.add_header("Accept", "application/json")
+                with urllib.request.urlopen(request, timeout=timeout) as response:
+                    data = json.loads(response.read().decode())
+                    if data.get("success") and data.get("data"):
+                        images = [i for i in data["data"] if fits_qt(i)]
+                        if images:
+                            logo_url = images[0].get("url", images[0].get("thumb"))
+                            self.image_cache.set(cache_key, logo_url)
+                            return self._local_or_url(logo_url)
+            except urllib.error.HTTPError as e:
+                if e.code == 404:
+                    self.image_cache.set(cache_key, "")
+            except (urllib.error.URLError, json.JSONDecodeError) as e:
+                print(f"[sgdb] name fallback failed: {e}", file=sys.stderr)
 
         if game_name:
             sgdb_id = self._search_sgdb_id_by_name(game_name, api_key, timeout)
@@ -437,14 +463,22 @@ class SGDBClient:
     ) -> str:
         platform = self.get_steamgriddb_platform(source, source)
         sgdb_url = self.get_steamgriddb_cover_url(
-            app_id, platform=platform, game_name=game_name
+            app_id,
+            platform=platform,
+            game_name=game_name,
+            is_sideload=source.lower() == "sideload",
         )
         return sgdb_url if sgdb_url else art_url
 
     # ── Slideshow ──────────────────────────────────────────────────────────
 
     def get_steamgriddb_slideshow_urls(
-        self, app_id: str, platform: str = "steam", game_name: str = "", n: int = 3
+        self,
+        app_id: str,
+        platform: str = "steam",
+        game_name: str = "",
+        n: int = 3,
+        is_sideload: bool = False,
     ) -> List[str]:
         """Returns top N static hero URLs for the BigPicture background slideshow.
 
@@ -460,6 +494,8 @@ class SGDBClient:
 
         endpoint = "heroes"
         cache_key = f"{platform}:{app_id}:hero:slideshow"
+        if is_sideload:
+            cache_key = f"{cache_key}:{game_name}"  # voir #13
         cached_val = self.image_cache.get(cache_key)
         if cached_val is not None:
             try:
@@ -517,8 +553,8 @@ class SGDBClient:
             "?types=static&mimes=image/jpeg,image/png"
             "&nsfw=false&humor=false&epilepsy=false"
         )
-        raw = do_request(base_url + query)
-        urls = top_images(raw, n)
+        # Sideload : ID Heroic interne, pas d'appel direct par ID (#13)
+        urls = [] if is_sideload else top_images(do_request(base_url + query), n)
 
         if not urls and game_name:
             sgdb_id = self._search_sgdb_id_by_name(game_name, api_key, timeout)
@@ -597,12 +633,20 @@ class SGDBClient:
             if not appid or str(appid) in ("None", ""):
                 return idx, None, None, None, [], None
             name = game.get("name", "")
+            is_sideload = (
+                game.get("category") == "sideload"
+                or game.get("source") in ("heroic", "sideload")
+            )
 
             # Récupérer la version statique seulement si nécessaire
             static_url = None
             if do_static:
                 static_url = self.get_steamgriddb_cover_url(
-                    appid, platform, game_name=name, prefer_animated=False
+                    appid,
+                    platform,
+                    game_name=name,
+                    prefer_animated=False,
+                    is_sideload=is_sideload,
                 )
                 if (
                     not static_url
@@ -615,15 +659,18 @@ class SGDBClient:
             animated_url = None
             if prefer_animated:
                 animated_url = self.get_steamgriddb_cover_url(
-                    appid, platform, game_name=name, prefer_animated=True
+                    appid, platform, game_name=name, prefer_animated=True,
+                    is_sideload=is_sideload,
                 )
                 # Si l'animée est identique à la statique (pas d'animée dispo), on la vide
                 if animated_url and animated_url == static_url:
                     animated_url = None
 
-            logo_url = self.get_steamgriddb_logo_url(appid, platform, game_name=name)
+            logo_url = self.get_steamgriddb_logo_url(
+                appid, platform, game_name=name, is_sideload=is_sideload
+            )
             slideshow_urls = self.get_steamgriddb_slideshow_urls(
-                appid, platform, game_name=name, n=3
+                appid, platform, game_name=name, n=3, is_sideload=is_sideload
             )
 
             # Hero animé pour le fond BigPicture (indépendant de image_type)
@@ -631,7 +678,7 @@ class SGDBClient:
             if prefer_animated:
                 hero_animated_url = self.get_steamgriddb_cover_url(
                     appid, platform, game_name=name, prefer_animated=True,
-                    image_type="hero",
+                    image_type="hero", is_sideload=is_sideload,
                 )
                 # Sans hero animé, la fonction retombe sur un statique : on l'ignore
                 if hero_animated_url and not hero_animated_url.lower().endswith(".webp"):

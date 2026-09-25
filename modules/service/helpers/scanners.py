@@ -466,8 +466,11 @@ class GameScanner:
                             if use_parallel or self.sgdb is None:
                                 cover_url = art
                             else:
+                                # Pass the title: sideload ids are Heroic-internal,
+                                # so cover resolution must go through the SGDB name
+                                # search (upstream issue #13).
                                 cover_url = self.sgdb.get_heroic_cover_url(
-                                    app_name, "sideload", art
+                                    app_name, "sideload", art, title
                                 )
                             games.append(
                                 {
