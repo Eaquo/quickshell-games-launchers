@@ -25,6 +25,9 @@ Rectangle {
     property bool isAnimated: isWebM || isAnimatedWebP
     property real glowOpacity: 0.8
 
+    // Opt-in RAM cache for the big animated WebP cover ([animations] cache_in_memory)
+    property bool cacheInMemory: false
+
     // Source WebM gérée manuellement pour contrôler le cycle vie RAM/réseau
     property string _webmSource: ""
 
@@ -227,7 +230,7 @@ Rectangle {
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 smooth: true
-                cache: false
+                cache: card.cacheInMemory
                 playing: true
                 paused: false
 

@@ -104,7 +104,8 @@ class SGDBClient:
         if not game_words:
             return None
 
-        encoded = urllib.parse.quote(game_name)
+        # Encode slashes too: a / in the title would split the URL path and cause SGDB 404 (e.g. "vivid/stasis")
+        encoded = urllib.parse.quote(game_name, safe="")
         url = f"https://www.steamgriddb.com/api/v2/search/autocomplete/{encoded}"
         try:
             req = urllib.request.Request(url)

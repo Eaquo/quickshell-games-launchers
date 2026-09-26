@@ -136,6 +136,12 @@ class GameLauncher:
                 "true",
                 "# Animated gradient border around the launcher window and search bar",
             ),
+            (
+                "animations",
+                "cache_in_memory",
+                "false",
+                "# Keep decoded animated WebP frames in RAM (opt-in, upstream: RAM-light by default)",
+            ),
         ]
         try:
             with open(self.config_path, "r", encoding="utf-8") as f:
@@ -494,6 +500,7 @@ class GameLauncher:
     def _spawn_image_downloader(self, games: List[Dict[str, Any]]):
         import subprocess
         import tempfile
+        import os
 
         urls = []
         for game in games:
@@ -506,39 +513,77 @@ class GameLauncher:
                     urls.append(url)
         if not urls:
             return
+
+        lock_path = self.image_cache.cache_dir.parent / "download-cache.lock"
+        # Check for existing lock
+        if lock_path.exists():
+            try:
+                with open(lock_path, "r") as f:
+                    pid_str = f.read().strip()
+                if pid_str:
+                    pid = int(pid_str)
+                    # Check if process is alive
+                    try:
+                        os.kill(pid, 0)
+                    except OSError:
+                        # Process not alive, remove stale lock
+                        lock_path.unlink()
+                    else:
+                        # Process alive, skip spawn
+                        return
+            except (ValueError, OSError):
+                # If we can't read or convert, treat as stale and remove
+                if lock_path.exists():
+                    lock_path.unlink()
+
         tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
         json.dump(urls, tmp)
         tmp.close()
-        subprocess.Popen(
-            ["python3", str(Path(__file__).absolute()), "download-cache", tmp.name],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
 
+        log_path = self.image_cache.cache_dir.parent / "download-cache.log"
+        # Open log file in append binary mode
+        with open(log_path, "ab") as log_file:
+            subprocess.Popen(
+                ["python3", str(Path(__file__).absolute()), "download-cache", tmp.name],
+                stdout=log_file,
+                stderr=log_file,
+                start_new_session=True,
+            )
     def download_missing_images(self, urls_file: str):
         self.image_cache.clear_orphaned_images()
+        lock_path = self.image_cache.cache_dir.parent / "download-cache.lock"
+        # Ensure the directory exists
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        # Write our PID to the lock file
+        with open(lock_path, "w") as f:
+            f.write(str(os.getpid()))
         try:
-            with open(urls_file) as f:
-                urls = json.load(f)
-            os.unlink(urls_file)
-        except Exception:
-            return
-        for url in urls:
-            local = self.image_cache.cached_image_path(url)
-            if Path(local).exists():
-                continue
             try:
-                request = urllib.request.Request(url)
-                request.add_header("User-Agent", "QuickShell-GameLauncher/2.0")
-                with urllib.request.urlopen(request, timeout=30) as resp:
-                    data = resp.read()
-                with open(local, "wb") as f:
-                    f.write(data)
-            except Exception as e:
-                print(f"[downloader] {url}: {e}", file=sys.stderr)
-
-
+                with open(urls_file) as f:
+                    urls = json.load(f)
+            except Exception:
+                return
+            for url in urls:
+                local = self.image_cache.cached_image_path(url)
+                if Path(local).exists():
+                    continue
+                try:
+                    request = urllib.request.Request(url)
+                    request.add_header("User-Agent", "QuickShell-GameLauncher/2.0")
+                    with urllib.request.urlopen(request, timeout=30) as resp:
+                        data = resp.read()
+                    with open(local, "wb") as f:
+                        f.write(data)
+                except Exception as e:
+                    print(f"[downloader] {url}: {e}", file=sys.stderr)
+        finally:
+            # Remove lock file and urls_file
+            if lock_path.exists():
+                lock_path.unlink()
+            try:
+                os.unlink(urls_file)
+            except Exception:
+                pass
 def main():
     if len(sys.argv) >= 3 and sys.argv[1] == "toggle":
         name = sys.argv[2]

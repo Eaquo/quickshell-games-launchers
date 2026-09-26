@@ -82,6 +82,11 @@ enabled = true
 # Launcher open / close animation duration (milliseconds)
 duration_ms = 300
 
+# Keep decoded animated WebP frames in RAM
+#   false (default) = RAM-light; animated covers re-decode on re-display
+#   true            = instant re-display at the cost of RAM
+cache_in_memory = false
+
 
 # ── STEAM ────────────────────────────────────────────────────────────────────
 

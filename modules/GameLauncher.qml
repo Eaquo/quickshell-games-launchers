@@ -898,6 +898,7 @@ Rectangle {
                         isSelected: index === selectedIndex
                         gameColors: colors
                         lastPlayed: modelData.last_played || 0
+                        cacheInMemory: config?.animations?.cache_in_memory ?? false
                         scale: isSelected ? 1.0 : 0.85
                         opacity: isSelected ? 1.0 : 0.6
                         Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
@@ -1026,6 +1027,7 @@ Rectangle {
                         isSelected: index === selectedIndex
                         gameColors: colors
                         lastPlayed: modelData.last_played || 0
+                        cacheInMemory: config?.animations?.cache_in_memory ?? false
                         scale: isSelected ? 1.0 : 0.85
                         opacity: isSelected ? 1.0 : 0.6
                         Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
