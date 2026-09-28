@@ -566,6 +566,6 @@ Inspired by [caelestia-dots/shell](https://github.com/caelestia-dots/shell)
 &nbsp;&nbsp;
 [![Reddit](https://img.shields.io/badge/Reddit-Embarrassed--Ad2725-FF4500?style=for-the-badge&logo=reddit&logoColor=white&labelColor=302D41)](https://www.reddit.com/user/Embarrassed-Ad2725/)
 
-**Author** · Florian &nbsp;·&nbsp; **Version** · 2.0.0 &nbsp;·&nbsp; **Date** · 2026-05-31
+**Author** · Florian &nbsp;·&nbsp; **Version** · 2.1.0 &nbsp;·&nbsp; **Date** · 2026-09-28
 
 </div>
