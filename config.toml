@@ -151,6 +151,9 @@ image_type = "hero"
 # Prefer animated WebP covers over static PNG when available
 prefer_animated = true
 
+# Skip animated covers heavier than this (MB, 0 = no limit)
+max_animated_mb = 50
+
 # Fall back to Steam CDN images when no SGDB cover is found
 fallback_to_steam = true
 

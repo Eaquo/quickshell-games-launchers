@@ -122,6 +122,12 @@ class GameLauncher:
                 "true",
                 "# Fall back to Steam CDN images when no SGDB cover is found",
             ),
+            (
+                "steamgriddb",
+                "max_animated_mb",
+                "50",
+                "# Skip animated covers heavier than this (MB, 0 = no limit)",
+            ),
             ("steamgriddb", "nsfw", "false", "# Include NSFW content"),
             ("steamgriddb", "humor", "false", "# Include humor / meme content"),
             (
@@ -210,6 +216,7 @@ class GameLauncher:
                 "api_key": "",
                 "image_type": "grid",
                 "prefer_animated": False,
+                "max_animated_mb": 50,
                 "fallback_to_steam": True,
                 "dimensions": [],
                 "styles": [],
@@ -500,11 +507,10 @@ class GameLauncher:
     def _spawn_image_downloader(self, games: List[Dict[str, Any]]):
         import subprocess
         import tempfile
-        import os
 
         urls = []
         for game in games:
-            for field in ("image", "image_animated", "logo"):
+            for field in ("image", "image_animated", "hero_animated", "logo"):
                 url = game.get(field, "")
                 if url and url.startswith("http"):
                     urls.append(url)
@@ -514,76 +520,72 @@ class GameLauncher:
         if not urls:
             return
 
-        lock_path = self.image_cache.cache_dir.parent / "download-cache.lock"
-        # Check for existing lock
-        if lock_path.exists():
-            try:
-                with open(lock_path, "r") as f:
-                    pid_str = f.read().strip()
-                if pid_str:
-                    pid = int(pid_str)
-                    # Check if process is alive
-                    try:
-                        os.kill(pid, 0)
-                    except OSError:
-                        # Process not alive, remove stale lock
-                        lock_path.unlink()
-                    else:
-                        # Process alive, skip spawn
-                        return
-            except (ValueError, OSError):
-                # If we can't read or convert, treat as stale and remove
-                if lock_path.exists():
-                    lock_path.unlink()
-
         tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
         json.dump(urls, tmp)
         tmp.close()
 
         log_path = self.image_cache.cache_dir.parent / "download-cache.log"
-        # Open log file in append binary mode
-        with open(log_path, "ab") as log_file:
-            subprocess.Popen(
-                ["python3", str(Path(__file__).absolute()), "download-cache", tmp.name],
-                stdout=log_file,
-                stderr=log_file,
-                start_new_session=True,
-            )
-    def download_missing_images(self, urls_file: str):
-        self.image_cache.clear_orphaned_images()
-        lock_path = self.image_cache.cache_dir.parent / "download-cache.lock"
-        # Ensure the directory exists
-        lock_path.parent.mkdir(parents=True, exist_ok=True)
-        # Write our PID to the lock file
-        with open(lock_path, "w") as f:
-            f.write(str(os.getpid()))
         try:
+            # Rotation minimale : repart de zéro au-delà de 512 Ko
+            if log_path.exists() and log_path.stat().st_size > 512 * 1024:
+                log_path.unlink()
+            log_file = open(log_path, "ab")
+        except OSError:
+            log_file = subprocess.DEVNULL
+        subprocess.Popen(
+            ["python3", str(Path(__file__).absolute()), "download-cache", tmp.name],
+            stdout=log_file,
+            stderr=log_file,
+            start_new_session=True,
+        )
+        if log_file is not subprocess.DEVNULL:
+            log_file.close()
+
+    def download_missing_images(self, urls_file: str):
+        import fcntl
+
+        try:
+            with open(urls_file) as f:
+                urls = json.load(f)
+        except Exception:
+            return
+        finally:
             try:
-                with open(urls_file) as f:
-                    urls = json.load(f)
-            except Exception:
-                return
+                os.unlink(urls_file)
+            except OSError:
+                pass
+
+        # Un seul téléchargeur à la fois : les suivants attendent leur tour.
+        # Le verrou couvre aussi le nettoyage, sinon un téléchargeur supprime
+        # les fichiers qu'un autre est en train d'écrire.
+        self.image_cache.cache_dir.mkdir(parents=True, exist_ok=True)
+        lock_path = self.image_cache.cache_dir.parent / "download-cache.lock"
+        with open(lock_path, "w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            # Recharge le cache : un autre processus a pu le mettre à jour
+            self.image_cache.cache = self.image_cache._load_cache()
+            self.image_cache.clear_orphaned_images(keep_urls=urls)
             for url in urls:
-                local = self.image_cache.cached_image_path(url)
-                if Path(local).exists():
+                local = Path(self.image_cache.cached_image_path(url))
+                if local.exists():
                     continue
+                # Écrit dans .part puis renomme : un téléchargement interrompu
+                # ne laisse jamais un fichier tronqué pris pour valide
+                part = local.with_name(local.name + ".part")
                 try:
                     request = urllib.request.Request(url)
                     request.add_header("User-Agent", "QuickShell-GameLauncher/2.0")
-                    with urllib.request.urlopen(request, timeout=30) as resp:
-                        data = resp.read()
-                    with open(local, "wb") as f:
-                        f.write(data)
+                    with urllib.request.urlopen(request, timeout=60) as resp, open(
+                        part, "wb"
+                    ) as f:
+                        while chunk := resp.read(1 << 20):
+                            f.write(chunk)
+                    os.replace(part, local)
                 except Exception as e:
-                    print(f"[downloader] {url}: {e}", file=sys.stderr)
-        finally:
-            # Remove lock file and urls_file
-            if lock_path.exists():
-                lock_path.unlink()
-            try:
-                os.unlink(urls_file)
-            except Exception:
-                pass
+                    part.unlink(missing_ok=True)
+                    print(f"[downloader] {url}: {e}", file=sys.stderr, flush=True)
+
+
 def main():
     if len(sys.argv) >= 3 and sys.argv[1] == "toggle":
         name = sys.argv[2]

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import json
+import os
 import sys
+import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -11,6 +13,8 @@ class ImageCache:
         self.cache_dir = cache_file.parent / "images"
         self.cache_file = cache_file
         self.ttl = timedelta(hours=ttl_hours)
+        # set() est appelé depuis les threads SGDB : sérialise les écritures
+        self._lock = threading.Lock()
         self.cache = self._load_cache()
 
     def _load_cache(self) -> Dict[str, Any]:
@@ -24,25 +28,35 @@ class ImageCache:
             return {}
 
     def _save_cache(self):
-        try:
-            self.cache_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.cache_file, "w") as f:
-                json.dump(self.cache, f, indent=2)
-        except Exception as e:
-            print(f"[image_cache] save failed: {e}", file=sys.stderr)
+        # Écriture atomique (tmp + rename) : un lecteur concurrent ne voit jamais
+        # un JSON à moitié écrit, qui serait chargé comme cache vide
+        with self._lock:
+            tmp = self.cache_file.with_name(
+                f"{self.cache_file.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+            )
+            try:
+                self.cache_file.parent.mkdir(parents=True, exist_ok=True)
+                with open(tmp, "w") as f:
+                    json.dump(dict(self.cache), f, indent=2)
+                os.replace(tmp, self.cache_file)
+            except Exception as e:
+                print(f"[image_cache] save failed: {e}", file=sys.stderr)
+                tmp.unlink(missing_ok=True)
 
     def get(self, key: str) -> Optional[str]:
-        if key not in self.cache:
+        entry = self.cache.get(key)
+        if entry is None:
             return None
-        entry = self.cache[key]
         cached_time = datetime.fromisoformat(entry["timestamp"])
         if datetime.now() - cached_time > self.ttl:
-            del self.cache[key]
+            with self._lock:
+                self.cache.pop(key, None)
             return None
         return entry["url"]
 
     def set(self, key: str, url: str):
-        self.cache[key] = {"url": url, "timestamp": datetime.now().isoformat()}
+        with self._lock:
+            self.cache[key] = {"url": url, "timestamp": datetime.now().isoformat()}
         self._save_cache()
 
     def clear_expired(self):
@@ -57,11 +71,12 @@ class ImageCache:
         if expired_keys:
             self._save_cache()
 
-    def clear_orphaned_images(self):
+    def clear_orphaned_images(self, keep_urls=()):
         """Supprime les fichiers locaux qui ne correspondent plus à aucune entrée valide du cache."""
-        if not self.cache_dir.exists():
+        # Cache vide = chargement raté ou premier lancement : ne rien supprimer
+        if not self.cache_dir.exists() or not self.cache:
             return
-        valid = set()
+        valid = {self.cached_image_path(u) for u in keep_urls if u.startswith("http")}
         for entry in self.cache.values():
             url = entry.get("url", "")
             if url and url.startswith("["):

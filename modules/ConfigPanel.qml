@@ -64,6 +64,7 @@ Rectangle {
     property string  eSgdbApiKey:      config?.steamgriddb?.api_key           ?? ""
     property string  eSgdbImageType:   config?.steamgriddb?.image_type        ?? "hero"
     property bool    eSgdbAnimated:    config?.steamgriddb?.prefer_animated   ?? true
+    property int     eSgdbMaxAnimMb:   config?.steamgriddb?.max_animated_mb   ?? 50
     property bool    eSgdbFallback:    config?.steamgriddb?.fallback_to_steam ?? true
     property bool    eSgdbSortLikes:   config?.steamgriddb?.sort_by_likes     ?? true
     property int     eSgdbMinLikes:    config?.steamgriddb?.min_likes         ?? 0
@@ -181,6 +182,7 @@ Rectangle {
                     nc.steamgriddb.api_key           = panel.eSgdbApiKey
                     nc.steamgriddb.image_type        = panel.eSgdbImageType
                     nc.steamgriddb.prefer_animated   = panel.eSgdbAnimated
+                    nc.steamgriddb.max_animated_mb   = panel.eSgdbMaxAnimMb
                     nc.steamgriddb.fallback_to_steam = panel.eSgdbFallback
                     nc.steamgriddb.sort_by_likes     = panel.eSgdbSortLikes
                     nc.steamgriddb.min_likes         = panel.eSgdbMinLikes
@@ -231,7 +233,8 @@ Rectangle {
             lutris: { enabled: eLutrisEnabled, db_path: eLutrisDb },
             steamgriddb: {
                 enabled: eSgdbEnabled, api_key: eSgdbApiKey, image_type: eSgdbImageType,
-                prefer_animated: eSgdbAnimated, fallback_to_steam: eSgdbFallback,
+                prefer_animated: eSgdbAnimated, max_animated_mb: eSgdbMaxAnimMb,
+                fallback_to_steam: eSgdbFallback,
                 sort_by_likes: eSgdbSortLikes, min_likes: eSgdbMinLikes,
                 nsfw: eSgdbNsfw, humor: eSgdbHumor, epilepsy: eSgdbEpilepsy,
                 parallel_requests: eSgdbParallel, max_workers: eSgdbMaxWorkers,
@@ -288,6 +291,7 @@ Rectangle {
         eSgdbApiKey     = config?.steamgriddb?.api_key           ?? ""
         eSgdbImageType  = config?.steamgriddb?.image_type        ?? "hero"
         eSgdbAnimated   = config?.steamgriddb?.prefer_animated   ?? true
+        eSgdbMaxAnimMb  = config?.steamgriddb?.max_animated_mb   ?? 50
         eSgdbFallback   = config?.steamgriddb?.fallback_to_steam ?? true
         eSgdbSortLikes  = config?.steamgriddb?.sort_by_likes     ?? true
         eSgdbMinLikes   = config?.steamgriddb?.min_likes         ?? 0
@@ -1250,6 +1254,11 @@ Rectangle {
             }
             SRow { lbl: i18n.t("cfg_sgdb_animated"); sub: i18n.t("cfg_sgdb_animated_sub")
                 CfgToggle { checked: panel.eSgdbAnimated; onToggled: v => panel.eSgdbAnimated = v }
+            }
+            SRow { lbl: i18n.t("cfg_sgdb_max_anim"); sub: i18n.t("cfg_sgdb_max_anim_sub")
+                CfgSlider { from: 0; to: 100; value: panel.eSgdbMaxAnimMb; unit: "MB"
+                    onChanged: v => panel.eSgdbMaxAnimMb = Math.round(v)
+                }
             }
             SRow { lbl: i18n.t("cfg_sgdb_fallback"); sub: i18n.t("cfg_sgdb_fallback_sub")
                 CfgToggle { checked: panel.eSgdbFallback; onToggled: v => panel.eSgdbFallback = v }

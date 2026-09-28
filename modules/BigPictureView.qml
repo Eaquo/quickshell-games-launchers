@@ -51,8 +51,9 @@ Item {
         var g = currentGame
         if (!g) return []
         var imgs = []
-        // Animated WebP in first position so it plays on first slide
-        var anim = g.image_animated || ""
+        // Hero animé (bandeau large) en premier pour qu'il joue dès la 1re slide.
+        // Pas image_animated : c'est le format des cartes (600×900), flou et mal cadré ici
+        var anim = g.hero_animated || ""
         if (anim && anim.toLowerCase().endsWith(".webp")) imgs.push(anim)
         if (g.images && g.images.length > 0)
             imgs = imgs.concat(g.images.filter(u => u !== anim))

@@ -11,6 +11,16 @@ from typing import Any, Dict, List, Optional
 from .image_cache import ImageCache
 
 
+# Qt refuse de décoder au-delà de ~256 Mo par image (ex. logo 13471×6421)
+MAX_IMAGE_SIDE = 4096
+
+
+def fits_qt(img: Dict[str, Any]) -> bool:
+    return (img.get("width") or 0) <= MAX_IMAGE_SIDE and (
+        img.get("height") or 0
+    ) <= MAX_IMAGE_SIDE
+
+
 class SGDBClient:
     def __init__(self, config: Dict[str, Any], image_cache: ImageCache):
         self.config = config
@@ -35,6 +45,16 @@ class SGDBClient:
                 return response.status == 200
         except OSError:
             return False
+
+    def get_content_length(self, url: str, timeout: int = 3) -> Optional[int]:
+        try:
+            request = urllib.request.Request(url, method="HEAD")
+            request.add_header("User-Agent", "QuickShell-GameLauncher/2.0")
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                length = response.headers.get("Content-Length")
+                return int(length) if length else None
+        except (OSError, ValueError):
+            return None
 
     # ── CDN Steam ──────────────────────────────────────────────────────────
 
@@ -131,6 +151,7 @@ class SGDBClient:
         platform: str = "steam",
         game_name: str = "",
         prefer_animated: Optional[bool] = None,
+        image_type: Optional[str] = None,
     ) -> Optional[str]:
         sgdb_config = self.config.get("steamgriddb", {})
         if not sgdb_config.get("enabled", False):
@@ -142,15 +163,17 @@ class SGDBClient:
         if prefer_animated is None:
             prefer_animated = sgdb_config.get("prefer_animated", False)
 
-        anim_suffix = "animated" if prefer_animated else "static"
+        # Le plafond fait partie de la clé : le changer re-sélectionne l'animation
+        max_mb = sgdb_config.get("max_animated_mb", 50)
+        anim_suffix = f"animated-webp-{max_mb}" if prefer_animated else "static"
         cache_key = (
-            f"{platform}:{app_id}:{sgdb_config.get('image_type', 'grid')}:{anim_suffix}"
+            f"{platform}:{app_id}:{image_type or sgdb_config.get('image_type', 'grid')}:{anim_suffix}"
         )
         cached_url = self.image_cache.get(cache_key)
         if cached_url is not None:
             return self._local_or_url(cached_url) if cached_url else None
 
-        image_type = sgdb_config.get("image_type", "grid")
+        image_type = image_type or sgdb_config.get("image_type", "grid")
         endpoint_map = {
             "grid": "grids",
             "hero": "heroes",
@@ -160,9 +183,10 @@ class SGDBClient:
         endpoint = endpoint_map.get(image_type, "grids")
 
         def score_image(img):
-            likes = img.get("likes") or 0
+            likes = img.get("likes") or img.get("upvotes") or 0
             if sgdb_config.get("sort_by_likes", False):
-                return likes
+                # Départage à résolution égale de likes (souvent tous à 0)
+                return likes * 10**9 + (img.get("width") or 0) * (img.get("height") or 0)
             score = likes * 1000
             if img.get("width") and img.get("height"):
                 score += img["width"] * img["height"] // 100
@@ -173,11 +197,16 @@ class SGDBClient:
             return score
 
         def filter_images(images):
-            images = [img for img in images if img.get("width", 0) >= 300]
+            images = [
+                img for img in images
+                if 300 <= img.get("width", 0) and fits_qt(img)
+            ]
             min_likes = sgdb_config.get("min_likes", 0)
             if min_likes > 0:
                 filtered = [
-                    img for img in images if (img.get("likes") or 0) >= min_likes
+                    img
+                    for img in images
+                    if (img.get("likes") or img.get("upvotes") or 0) >= min_likes
                 ]
                 if filtered:
                     images = filtered
@@ -228,7 +257,9 @@ class SGDBClient:
                 print(f"[sgdb] request failed: {e}", file=sys.stderr)
             return None
 
-        def best_image(raw_images, prefer_webm=False):
+        max_animated_mb = sgdb_config.get("max_animated_mb", 50)
+
+        def best_image(raw_images, prefer_webm=False, animated=False):
             if not raw_images:
                 return None
             imgs = filter_images(raw_images)
@@ -239,13 +270,26 @@ class SGDBClient:
                 pool = sorted(webm or imgs, key=score_image, reverse=True)
             else:
                 pool = sorted(imgs, key=score_image, reverse=True)
+            if animated and max_animated_mb > 0:
+                # Certains WebP animés dépassent 50 Mo : on prend le mieux classé
+                # sous le plafond, sinon pas d'animation
+                limit = max_animated_mb * 1024 * 1024
+                for img in pool[:6]:
+                    url = img.get("url")
+                    size = self.get_content_length(url, timeout) if url else None
+                    if size is not None and size <= limit:
+                        return url
+                return None
             return pool[0].get("url", pool[0].get("thumb"))
 
         if prefer_animated:
-            raw = do_request(make_url("animated", with_dims=True))
+            # WebP uniquement : le QML ne sait pas animer les APNG ni les GIF
+            raw = do_request(make_url("animated", with_dims=True, mimes_val="image/webp"))
             if raw is None and dimensions:
-                raw = do_request(make_url("animated", with_dims=False))
-            image_url = best_image(raw, prefer_webm=False)
+                raw = do_request(
+                    make_url("animated", with_dims=False, mimes_val="image/webp")
+                )
+            image_url = best_image(raw, animated=True)
             if image_url:
                 self.image_cache.set(cache_key, image_url)
                 return self._local_or_url(image_url)
@@ -266,13 +310,23 @@ class SGDBClient:
                 )
                 if prefer_animated:
                     raw = do_request(
-                        make_url("animated", with_dims=True, url_base=name_base)
+                        make_url(
+                            "animated",
+                            with_dims=True,
+                            mimes_val="image/webp",
+                            url_base=name_base,
+                        )
                     )
                     if raw is None and dimensions:
                         raw = do_request(
-                            make_url("animated", with_dims=False, url_base=name_base)
+                            make_url(
+                                "animated",
+                                with_dims=False,
+                                mimes_val="image/webp",
+                                url_base=name_base,
+                            )
                         )
-                    image_url = best_image(raw, prefer_webm=False)
+                    image_url = best_image(raw, animated=True)
                     if image_url:
                         self.image_cache.set(cache_key, image_url)
                         return self._local_or_url(image_url)
@@ -329,7 +383,7 @@ class SGDBClient:
             with urllib.request.urlopen(request, timeout=timeout) as response:
                 data = json.loads(response.read().decode())
                 if data.get("success") and data.get("data"):
-                    images = data["data"]
+                    images = [i for i in data["data"] if fits_qt(i)]
                     if images:
                         logo_url = images[0].get("url", images[0].get("thumb"))
                         self.image_cache.set(cache_key, logo_url)
@@ -351,12 +405,14 @@ class SGDBClient:
                     req2.add_header("Accept", "application/json")
                     with urllib.request.urlopen(req2, timeout=timeout) as r2:
                         d2 = json.loads(r2.read().decode())
-                        if d2.get("success") and d2.get("data"):
-                            logo_url = d2["data"][0].get(
-                                "url", d2["data"][0].get("thumb")
-                            )
+                        logos = [i for i in d2.get("data") or [] if fits_qt(i)]
+                        if d2.get("success") and logos:
+                            logo_url = logos[0].get("url", logos[0].get("thumb"))
                             self.image_cache.set(cache_key, logo_url)
                             return self._local_or_url(logo_url)
+                except urllib.error.HTTPError as e:
+                    if e.code != 404:
+                        print(f"[sgdb] logo HTTP {e.code} on {name_url}", file=sys.stderr)
                 except (urllib.error.URLError, json.JSONDecodeError) as e:
                     print(f"[sgdb] logo name fallback failed: {e}", file=sys.stderr)
 
@@ -390,7 +446,11 @@ class SGDBClient:
     def get_steamgriddb_slideshow_urls(
         self, app_id: str, platform: str = "steam", game_name: str = "", n: int = 3
     ) -> List[str]:
-        """Returns top N static image URLs for BigPicture hero slideshow."""
+        """Returns top N static hero URLs for the BigPicture background slideshow.
+
+        Toujours des heroes (bandeaux larges, jusqu'à 3840×1240), quel que soit
+        image_type : celui-ci ne concerne que les cartes.
+        """
         sgdb_config = self.config.get("steamgriddb", {})
         if not sgdb_config.get("enabled", False):
             return []
@@ -398,16 +458,8 @@ class SGDBClient:
         if not api_key:
             return []
 
-        image_type = sgdb_config.get("image_type", "grid")
-        endpoint_map = {
-            "grid": "grids",
-            "hero": "heroes",
-            "logo": "logos",
-            "icon": "icons",
-        }
-        endpoint = endpoint_map.get(image_type, "grids")
-
-        cache_key = f"{platform}:{app_id}:{image_type}:slideshow"
+        endpoint = "heroes"
+        cache_key = f"{platform}:{app_id}:hero:slideshow"
         cached_val = self.image_cache.get(cache_key)
         if cached_val is not None:
             try:
@@ -420,9 +472,10 @@ class SGDBClient:
         base_url = f"https://www.steamgriddb.com/api/v2/{endpoint}/{platform}/{app_id}"
 
         def score_image(img):
-            likes = img.get("likes") or 0
+            likes = img.get("likes") or img.get("upvotes") or 0
             if sgdb_config.get("sort_by_likes", False):
-                return likes
+                # Départage à résolution égale de likes (souvent tous à 0)
+                return likes * 10**9 + (img.get("width") or 0) * (img.get("height") or 0)
             score = likes * 1000
             if img.get("width") and img.get("height"):
                 score += img["width"] * img["height"] // 100
@@ -442,6 +495,9 @@ class SGDBClient:
                     data = json.loads(resp.read().decode())
                     if data.get("success") and data.get("data"):
                         return data["data"]
+            except urllib.error.HTTPError as e:
+                if e.code != 404:
+                    print(f"[sgdb] HTTP {e.code} on {url}", file=sys.stderr)
             except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as e:
                 print(f"[sgdb] request failed: {e}", file=sys.stderr)
             return None
@@ -449,7 +505,7 @@ class SGDBClient:
         def top_images(raw, count):
             if not raw:
                 return []
-            imgs = [img for img in raw if img.get("width", 0) >= 300]
+            imgs = [img for img in raw if img.get("width", 0) >= 300 and fits_qt(img)]
             imgs = sorted(imgs, key=score_image, reverse=True)
             return [
                 img.get("url") or img.get("thumb")
@@ -457,7 +513,10 @@ class SGDBClient:
                 if img.get("url") or img.get("thumb")
             ]
 
-        query = "?types=static&mimes=image/png&nsfw=false&humor=false&epilepsy=false"
+        query = (
+            "?types=static&mimes=image/jpeg,image/png"
+            "&nsfw=false&humor=false&epilepsy=false"
+        )
         raw = do_request(base_url + query)
         urls = top_images(raw, n)
 
@@ -518,7 +577,9 @@ class SGDBClient:
             needs_animated = prefer_animated and not game.get("image_animated")
             has_id = bool(appid) and str(appid) not in ("None", "") \
                 or source in ["lutris", "manual", "config"]
-            if valid_source and has_id and (needs_static or needs_animated):
+            # Les heroes BigPicture ne viennent jamais des scanners : toujours à récupérer
+            needs_hero = not game.get("images")
+            if valid_source and has_id and (needs_static or needs_animated or needs_hero):
                 games_to_fetch.append((i, game, needs_static))
 
         if not games_to_fetch:
@@ -534,7 +595,7 @@ class SGDBClient:
             )
             appid = game.get("appid")
             if not appid or str(appid) in ("None", ""):
-                return idx, None, None, None, []
+                return idx, None, None, None, [], None
             name = game.get("name", "")
 
             # Récupérer la version statique seulement si nécessaire
@@ -564,7 +625,21 @@ class SGDBClient:
             slideshow_urls = self.get_steamgriddb_slideshow_urls(
                 appid, platform, game_name=name, n=3
             )
-            return idx, static_url, animated_url, logo_url, slideshow_urls
+
+            # Hero animé pour le fond BigPicture (indépendant de image_type)
+            hero_animated_url = None
+            if prefer_animated:
+                hero_animated_url = self.get_steamgriddb_cover_url(
+                    appid, platform, game_name=name, prefer_animated=True,
+                    image_type="hero",
+                )
+                # Sans hero animé, la fonction retombe sur un statique : on l'ignore
+                if hero_animated_url and not hero_animated_url.lower().endswith(".webp"):
+                    hero_animated_url = None
+            return (
+                idx, static_url, animated_url, logo_url, slideshow_urls,
+                hero_animated_url,
+            )
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
@@ -572,9 +647,10 @@ class SGDBClient:
             }
             for future in as_completed(futures):
                 try:
-                    idx, static_url, animated_url, logo_url, slideshow_urls = (
-                        future.result()
-                    )
+                    (
+                        idx, static_url, animated_url, logo_url, slideshow_urls,
+                        hero_animated_url,
+                    ) = future.result()
                     if static_url:
                         games[idx]["image"] = static_url
                     if animated_url:
@@ -583,6 +659,8 @@ class SGDBClient:
                         games[idx]["logo"] = logo_url
                     if slideshow_urls:
                         games[idx]["images"] = slideshow_urls
+                    if hero_animated_url:
+                        games[idx]["hero_animated"] = hero_animated_url
                 except Exception as e:
                     game_name = (
                         games[idx].get("name", "?") if 0 <= idx < len(games) else "?"

@@ -196,6 +196,10 @@ ShellRoot {
                     onConfigSaved: (newConfig) => {
                         root.config = newConfig
                         root.configPanelVisible = false
+                        // Le démon garde les jeux en mémoire : recharge pour appliquer
+                        // les réglages côté backend (type d'image SGDB, sources…)
+                        launcher.loadGames()
+                        launcher.forceActiveFocus()
                     }
                 }
             }  // End rootItem

@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] — 2026-09-28
+
+### Added
+- **Big Picture always uses SteamGridDB heroes** for the background (up to 3840×1240), whatever `image_type` is set for the cards — sharp and correctly framed on wide screens
+- **Animated hero** (`hero_animated`) plays as the first Big Picture slide when one exists
+- `[animations] cache_in_memory` option — keep decoded animated frames in RAM for instant re-display (opt-in, #14 by @Diego0160)
+- `max_animated_mb` option (default 50) — skip animated covers heavier than this; also available as a slider in ConfigPanel (i18n fr / en / es / ru / ja)
+
+### Fixed
+- Animated covers not showing: concurrent writes to `image_cache.json` could leave it half-written, read back as empty, and the downloader then deleted every cached image — animations were re-downloaded (30-50 MB) on each selection
+  - Atomic, thread-safe cache writes (tmp file + rename)
+  - Orphan cleanup skips when the cache is empty
+  - Single downloader at a time (`flock`), lock taken before cleanup — replaces the PID lock file from #14
+  - Downloads written to `.part` then renamed — an interrupted download never leaves a truncated file
+  - Downloader output logged to `cache/download-cache.log`
+- Animated covers limited to WebP — animated PNG (APNG) was displayed as a still image
+- Game names containing `/` no longer break the SGDB search (404) (#14 by @Diego0160)
+- Images larger than 4096 px per side are skipped (Qt could not decode e.g. a 13471×6421 logo)
+- SGDB ranking reads `upvotes` (the API has no `likes` field); ties broken by resolution
+- Saving the config now reloads the game list (daemon mode kept stale images, e.g. after changing `image_type`)
+- 404 responses from SGDB no longer spam stderr
+
 ## [2.0.0] — 2026-05-31
 
 ### Added
