@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file.
 - Steam and Heroic launch without opening their client window
 - Saving the config now reloads the game list
 - Config migration adds new keys to the right section
+- Heroic sideload games no longer share the same wrong cover — artwork is looked up by title (#13, fix by @Diego0160)
 - Game names containing `/` no longer break the SGDB search (#14 by @Diego0160)
 - Oversized images (e.g. a 13471×6421 logo) are skipped
 
