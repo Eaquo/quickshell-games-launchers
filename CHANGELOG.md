@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 - **Big Picture always uses SteamGridDB heroes** for the background (up to 3840×1240), whatever `image_type` is set for the cards — sharp and correctly framed on wide screens
 - **Animated hero** (`hero_animated`) plays as the first Big Picture slide when one exists
 - `[animations] cache_in_memory` option — keep decoded animated frames in RAM for instant re-display (opt-in, #14 by @Diego0160)
+- ConfigPanel toggle for `cache_in_memory` (Animations section, i18n fr / en / es / ru / ja)
+- Number fields in ConfigPanel (cache TTL, workers, timeout) are now editable with the keyboard — Enter / focus loss to apply, Esc to cancel, value clamped to its range
 - `max_animated_mb` option (default 50) — skip animated covers heavier than this; also available as a slider in ConfigPanel (i18n fr / en / es / ru / ja)
 
 ### Fixed
